@@ -48,7 +48,8 @@
 
 | Category | Entry | Overview |
 |---|---|---|
-| CI | `.github/workflows/build.yaml` | Builds and publishes deployment images. |
+| CI | `.github/workflows/build.yaml` | Verifies and publishes deployment images. |
+| CI | `.github/workflows/sync-upstream.yaml` | Proposes safe upstream integration reviews. |
 | CI | `.github/workflows/verify.yaml` | Validates every repository change. |
 | Skill | `$audit-copilot-workarounds` | Audits Copilot compatibility workarounds. |
 | Skill | `$backfill-usage-pricing` | Reprices recorded model usage. |

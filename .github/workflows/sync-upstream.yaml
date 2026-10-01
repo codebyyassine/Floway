@@ -1,0 +1,58 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  sync:
+    if: github.repository == 'codebyyassine/Floway'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Integrate upstream without replacing fork history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/Menci/Floway.git
+          git fetch upstream main
+          upstream_sha=$(git rev-parse upstream/main)
+          branch="sync/upstream-${upstream_sha:0:12}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo 'This upstream revision already has a synchronization branch.'
+            exit 0
+          fi
+          git switch -c "$branch"
+          if ! git -c core.hooksPath=/dev/null merge --squash upstream/main; then
+            git reset --merge HEAD
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Upstream synchronization conflict at ${upstream_sha:0:12}" \
+              --body "The three-way integration of Menci/Floway at $upstream_sha conflicted. No fork branch was replaced or pushed. Resolve manually; production remains unchanged. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo 'The fork already contains the upstream changes.'
+            exit 0
+          fi
+          git -c core.hooksPath=/dev/null commit -m "chore: integrate upstream ${upstream_sha:0:12}"
+          git push origin "HEAD:refs/heads/$branch"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
+            --title "chore: integrate upstream ${upstream_sha:0:12}" \
+            --body "Three-way integration of Menci/Floway at $upstream_sha preserves fork changes. Review and require Verify to pass before squash-merging. Conflicts fail safely. This workflow does not deploy or overwrite main."
+          gh workflow run verify.yaml --repo "$GITHUB_REPOSITORY" --ref "$branch"
