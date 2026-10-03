@@ -1,14 +1,17 @@
 import { analyzeAnthropicMessagesAffinity } from './affinity/ingress.ts';
 import { anthropicMessagesAttempt, anthropicMessagesGenerateTarget, anthropicMessagesCountTokensTarget } from './attempt.ts';
 import { renderAnthropicMessagesFailure } from './errors.ts';
+import { prepareAnthropicMessagesWebSearchShimRequest } from './interceptors/web-search-shim.ts';
 import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
+import { prepareCodexSessionAffinity } from '../shared/codex-session-affinity.ts';
 import { noViableCandidateFailure } from '../shared/errors.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import { parseAnthropicBetaHeader, type AnthropicMessagesPayload, type AnthropicMessagesStreamEvent } from '@floway-dev/protocols/anthropic-messages';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { ExecuteResult, PlainResult } from '@floway-dev/provider';
+import { translateAnthropicMessagesViaOpenAIResponses } from '@floway-dev/translate';
 
 export interface AnthropicMessagesServeGenerateArgs {
   readonly payload: AnthropicMessagesPayload;
@@ -39,6 +42,11 @@ export const anthropicMessagesServe = {
     if ('kind' in selection) return renderAnthropicMessagesFailure(selection, 'generate');
     if (selection.candidates.length === 0) return renderAnthropicMessagesFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams), 'generate');
 
+    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => {
+      const prepared = prepareAnthropicMessagesWebSearchShimRequest(structuredClone(payload));
+      if (prepared.type !== 'ok') return null;
+      return (await translateAnthropicMessagesViaOpenAIResponses(prepared.payload, { model: payload.model })).target;
+    });
     // Try each affinity-selected candidate in order. A successful attempt (SSE
     // stream opened) is the final answer; an api-error or internal-error
     // from one candidate falls through to the next so the gateway absorbs
@@ -46,13 +54,16 @@ export const anthropicMessagesServe = {
     // most recent failure is forwarded verbatim. Each attempt stamps its
     // private payload clone with the candidate's canonical model id.
     return await iterateCandidates(
-      selection.candidates,
+      session.candidates,
       'anthropicMessagesServe.generate',
       ctx,
       'chat',
       async candidate => {
         const result = await anthropicMessagesAttempt.generate({ payload: selection.payloadFor(candidate), ctx, candidate, headers, anthropicBeta });
-        if (result.type === 'events') ctx.affinity.select(candidate);
+        if (result.type === 'events') {
+          await session.succeeded(candidate);
+          ctx.affinity.select(candidate);
+        }
         return result;
       },
     );

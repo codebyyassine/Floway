@@ -561,7 +561,19 @@ export interface ScheduledMaintenanceRepo {
 // here satisfy that contract. Re-exported so the repo layer imports one source.
 export type { AgentSetupMutation, AgentSetupRecord, AgentSetupRenewal, AgentSetupRepository } from '@floway-dev/agent-setup';
 
+export interface CodexSessionBinding {
+  readonly upstreamId: string;
+  readonly revision: number;
+}
+
+export interface CodexSessionAffinityRepo {
+  get(apiKeyId: string, sessionKey: string): Promise<CodexSessionBinding | null>;
+  claim(apiKeyId: string, sessionKey: string, upstreamId: string): Promise<CodexSessionBinding>;
+  replace(apiKeyId: string, sessionKey: string, expectedRevision: number, upstreamId: string): Promise<void>;
+}
+
 export interface Repo {
+  codexSessionAffinity: CodexSessionAffinityRepo;
   apiKeys: ApiKeyRepo;
   users: UsersRepo;
   sessions: SessionsRepo;

@@ -123,6 +123,7 @@ const makeProviderEvents = async function* (events: readonly OpenAIResponsesStre
 
 const makeCandidate = (overrides: {
   upstream?: string;
+  kind?: 'custom' | 'codex';
   endpoints?: ModelEndpoints;
   enabledFlags?: ReadonlySet<FlagId>;
   callOpenAIResponses?: (model: unknown, body: unknown, action: OpenAIResponsesAction, signal?: AbortSignal, opts?: UpstreamCallOptions) => Promise<ProviderOpenAIResponsesResult>;
@@ -135,7 +136,7 @@ const makeCandidate = (overrides: {
   return {
     provider: {
       upstreamId: upstream,
-      kind: 'custom',
+      kind: overrides.kind ?? 'custom',
       name: upstream,
       inboundHeaderAllowlist: [],
       disabledPublicModelIds: [],
@@ -169,6 +170,32 @@ const queueCompletedResponse = (id = 'resp_test') => {
   queueResolution([makeCandidate({ callOpenAIResponses })]);
   return callOpenAIResponses;
 };
+
+test('Codex sessions reuse their initial account when candidate order changes', async () => {
+  installRepo();
+  const calls: string[] = [];
+  const account = (upstream: string) => makeCandidate({
+    upstream, kind: 'codex', endpoints: { openaiResponses: {} },
+    callOpenAIResponses: async () => {
+      calls.push(upstream);
+      return { action: 'generate', ok: true, events: makeProviderEvents(completedEvents()), modelKey: 'test-model-key' };
+    },
+  });
+  const a = account('account-a');
+  const b = account('account-b');
+  const app = makeApp();
+  for (const candidates of [[a, b], [b, a], [b, a]]) {
+    queueResolution(candidates);
+    const response = await app.request('/v1/responses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'session-id': 'same-session' },
+      body: JSON.stringify({ model: 'test-model', input: [{ role: 'user', content: 'hello' }], store: false }),
+    });
+    assertEquals(response.status, 200);
+    await response.text();
+  }
+  assertEquals(calls, ['account-a', 'account-a', 'account-a']);
+});
 
 test('Responses Lite input items keep their position and metadata across HTTP continuation', async () => {
   installRepo();

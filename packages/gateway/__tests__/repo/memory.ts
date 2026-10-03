@@ -20,6 +20,8 @@ import type {
   ApiKey,
   ApiKeyRepo,
   ApiKeyUpdate,
+  CodexSessionAffinityRepo,
+  CodexSessionBinding,
   ExpirationDomain,
   ExpirationSweepCompletion,
   ExpirationSweepClaim,
@@ -1481,7 +1483,31 @@ class MemoryAgentSetupRepo implements AgentSetupRepository {
   }
 }
 
+class MemoryCodexSessionAffinityRepo implements CodexSessionAffinityRepo {
+  private readonly bindings = new Map<string, CodexSessionBinding>();
+
+  get(apiKeyId: string, sessionKey: string): Promise<CodexSessionBinding | null> {
+    const binding = this.bindings.get(JSON.stringify([apiKeyId, sessionKey]));
+    return Promise.resolve(binding === undefined ? null : { ...binding });
+  }
+
+  claim(apiKeyId: string, sessionKey: string, upstreamId: string): Promise<CodexSessionBinding> {
+    const key = JSON.stringify([apiKeyId, sessionKey]);
+    const selected = this.bindings.get(key) ?? { upstreamId, revision: 0 };
+    this.bindings.set(key, selected);
+    return Promise.resolve({ ...selected });
+  }
+
+  replace(apiKeyId: string, sessionKey: string, expectedRevision: number, upstreamId: string): Promise<void> {
+    const key = JSON.stringify([apiKeyId, sessionKey]);
+    const existing = this.bindings.get(key);
+    if (existing?.revision === expectedRevision) this.bindings.set(key, { upstreamId, revision: expectedRevision + 1 });
+    return Promise.resolve();
+  }
+}
+
 export class InMemoryRepo implements Repo {
+  codexSessionAffinity: Repo['codexSessionAffinity'] = new MemoryCodexSessionAffinityRepo();
   apiKeys: ApiKeyRepo;
   users: UsersRepo;
   sessions: SessionsRepo;

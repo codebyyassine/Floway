@@ -4,11 +4,13 @@ import { renderOpenAIChatCompletionsFailure } from './errors.ts';
 import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
+import { prepareCodexSessionAffinity } from '../shared/codex-session-affinity.ts';
 import { noViableCandidateFailure } from '../shared/errors.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { OpenAIChatCompletionsPayload, OpenAIChatCompletionsStreamEvent } from '@floway-dev/protocols/openai-chat-completions';
 import type { ExecuteResult } from '@floway-dev/provider';
+import { translateOpenAIChatCompletionsViaOpenAIResponses } from '@floway-dev/translate';
 
 export interface OpenAIChatCompletionsServeGenerateArgs {
   readonly payload: OpenAIChatCompletionsPayload;
@@ -32,6 +34,8 @@ export const openaiChatCompletionsServe = {
     if ('kind' in selection) return renderOpenAIChatCompletionsFailure(selection);
     if (selection.candidates.length === 0) return renderOpenAIChatCompletionsFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams));
 
+    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () =>
+      (await translateOpenAIChatCompletionsViaOpenAIResponses(structuredClone(payload), { model: payload.model })).target);
     // Try each affinity-selected candidate in order. A successful attempt (SSE
     // stream opened) is the final answer; an api-error or internal-error
     // from one candidate falls through to the next so the gateway absorbs
@@ -41,13 +45,16 @@ export const openaiChatCompletionsServe = {
     // stamps its private payload clone with the candidate's canonical model id
     // so aliases and prefixed ids resolve without mutating the caller payload.
     return await iterateCandidates(
-      selection.candidates,
+      session.candidates,
       'openaiChatCompletionsServe.generate',
       ctx,
       'chat',
       async candidate => {
         const result = await openaiChatCompletionsAttempt.generate({ payload: selection.payloadFor(candidate), ctx, candidate, headers });
-        if (result.type === 'events') ctx.affinity.select(candidate);
+        if (result.type === 'events') {
+          await session.succeeded(candidate);
+          ctx.affinity.select(candidate);
+        }
         return result;
       },
     );
