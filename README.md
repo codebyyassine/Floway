@@ -109,6 +109,19 @@ key fields in the dashboard and model YAML.
 | Azure | Azure AI resource or Foundry project endpoint and API key | Configured models |
 | Ollama | ollama.com or a self-hosted Ollama-compatible server | Fetched live from Ollama, with optional manual overrides |
 
+For a Codex upstream, open a chat model's **Details → Capabilities and limits**
+in the dashboard to override its context window, prompt tokens, output tokens,
+image input, original image detail, or supported and default reasoning efforts.
+Click **Save** to apply changes. Overrides belong to that upstream and model,
+not to other upstreams or its built-in image model. They change Floway's local
+metadata; they cannot enable features or raise limits enforced by the provider.
+
+Unset fields continue to inherit catalog updates. Clear a numeric field, select
+**Inherited** for an image capability, or use the field, reasoning, or model reset
+buttons to restore inheritance, then save. Catalog refreshes and credential
+re-imports retain saved overrides; re-importing also preserves unsaved override
+edits without saving them.
+
 Codex chat sessions reuse their initially selected account across requests, including
 Responses compaction and translated chat endpoints. Affinity is scoped to the API
 key and persisted in the database, so concurrent first requests and runtime restarts
