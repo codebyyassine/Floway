@@ -83,13 +83,22 @@ export const findCredential = (record: CodexRecord): CredentialLookup => {
 export const codexRenewable = (credential: CodexAccountCredentialState): boolean =>
   credential.refresh_token_set ?? (typeof credential.refresh_token === 'string' && credential.refresh_token.length > 0);
 
+// A reset instant that has passed means the period rolled over, so the window
+// reads empty; a window the snapshot never dated keeps its reading.
+const readPercent = (percent: number, resetAt: string | undefined, now: number): number => {
+  if (resetAt === undefined) return percent;
+  const instant = Date.parse(resetAt);
+  return Number.isFinite(instant) && instant <= now ? 0 : percent;
+};
+
 const window = (
   key: QuotaWindow['key'],
   percent: number | undefined,
   resetAt: string | undefined,
   windowMinutes: number | undefined,
+  now: number,
 ): QuotaWindow | null => typeof percent === 'number' && Number.isFinite(percent)
-  ? { key, percent, resetAt: resetAt ?? null, windowMinutes: windowMinutes ?? null }
+  ? { key, percent: readPercent(percent, resetAt, now), resetAt: resetAt ?? null, windowMinutes: windowMinutes ?? null }
   : null;
 
 const stillRateLimited = (until: string | undefined, now: number): string | null =>
@@ -104,8 +113,8 @@ export const quotaEntries = (quota: CodexQuotaSnapshotMap | null | undefined, no
       observedAt: snapshot.observed_at,
       rateLimitedUntil: stillRateLimited(snapshot.ratelimited_until, now),
       windows: [
-        window('primary', snapshot.primary_used_percent, snapshot.primary_reset_after_at, snapshot.primary_window_minutes),
-        window('secondary', snapshot.secondary_used_percent, snapshot.secondary_reset_after_at, snapshot.secondary_window_minutes),
+        window('primary', snapshot.primary_used_percent, snapshot.primary_reset_after_at, snapshot.primary_window_minutes, now),
+        window('secondary', snapshot.secondary_used_percent, snapshot.secondary_reset_after_at, snapshot.secondary_window_minutes, now),
       ].filter((entry): entry is QuotaWindow => entry !== null),
     }));
 

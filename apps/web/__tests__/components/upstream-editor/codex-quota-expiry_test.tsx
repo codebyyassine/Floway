@@ -13,26 +13,28 @@ stubLocalStorage();
 const observed = '2026-07-28T11:00:00.000Z';
 const primaryReset = '2026-07-28T13:00:00.000Z';
 const secondaryReset = '2026-08-01T12:00:00.000Z';
+const nextReset = '2026-09-01T00:00:00.000Z';
 const record = upstreamRecord('', {
   kind: 'codex',
   config: { accounts: [{ email: 'fixture@example.com', chatgptAccountId: 'fixture', chatgptUserId: 'fixture', planType: 'plus' }] },
   state: { accounts: [{ chatgptAccountId: 'fixture', state: 'active', state_updated_at: observed }] },
 }) as CodexRecord;
 
-// Control-plane projections retain observed usage and date only known exhausted windows.
+// `after` is what both surfaces read once `until` passes, in window order;
+// list and card share the projection, so they cannot disagree.
 const cases = [
-  { name: 'primary only', primary: 100, secondary: 35, until: primaryReset },
-  { name: 'secondary only', primary: 35, secondary: 100, until: secondaryReset },
-  { name: 'both known', primary: 100, secondary: 100, until: secondaryReset },
-  { name: 'unknown secondary percentage', primary: 100, secondary: undefined, until: primaryReset },
-  { name: 'exhausted secondary without reset', primary: 100, secondary: 100, secondaryReset: undefined, until: primaryReset },
-  { name: 'unknown primary percentage', primary: undefined, secondary: 100, until: secondaryReset },
+  { name: 'primary only', primary: 100, secondary: 35, until: primaryReset, after: [0, 35] },
+  { name: 'secondary only', primary: 35, secondary: 100, until: secondaryReset, after: [0, 0] },
+  { name: 'both known', primary: 100, secondary: 100, until: secondaryReset, after: [0, 0] },
+  { name: 'unknown secondary percentage', primary: 100, secondary: undefined, until: primaryReset, after: [0] },
+  { name: 'exhausted secondary without reset', primary: 100, secondary: 100, secondaryReset: undefined, until: primaryReset, after: [0, 100] },
+  { name: 'unknown primary percentage', primary: undefined, secondary: 100, until: secondaryReset, after: [0] },
 ];
 
 afterEach(() => vi.useRealTimers());
 
 describe('Codex projected quota on list and card', () => {
-  it.each(cases)('expires the known timer without new traffic: $name', async ({ primary, secondary, until, ...scenario }) => {
+  it.each(cases)('expires the known timer without new traffic: $name', async ({ primary, secondary, until, after, ...scenario }) => {
     vi.useFakeTimers();
     vi.setSystemTime('2026-07-28T12:00:00.000Z');
     const quota = {
@@ -66,15 +68,26 @@ describe('Codex projected quota on list and card', () => {
     });
     expect(list.queryByText('Rate limited')).toBeNull();
     expect(card.queryByText(/^Rate-limited until/)).toBeNull();
-    expect(card.getByText('Heavy usage (100%)')).toBeTruthy();
-    expect(list.getAllByText('100%').length).toBeGreaterThan(0);
-    expect(card.queryByText('0%')).toBeNull();
+
+    // An elapsed window reads fresh on both surfaces; a window the snapshot
+    // never dated keeps the reading it was last seen with.
+    for (const percent of new Set(after)) {
+      expect(list.getAllByText(`${percent}%`).length).toBeGreaterThan(0);
+      expect(card.getAllByText(`${percent}%`).length).toBeGreaterThan(0);
+    }
+    const stillHeavy = after.some(percent => percent >= 80);
+    expect(list.queryByText('100%') !== null).toBe(after.includes(100));
+    expect(card.queryByText('100%') !== null).toBe(after.includes(100));
+    expect(card.queryByText(/^Heavy usage/) !== null).toBe(stillHeavy);
+    expect(card.queryByText('Active') !== null).toBe(!stillHeavy);
     expect(projected.codex_quota.premium).toEqual(quota);
 
-    const fresh = { ...projected, codex_quota: { premium: { ...quota, primary_used_percent: 12, secondary_used_percent: 35, ratelimited_until: undefined } } };
+    // A fresh reading repopulates the window with a real percent.
+    const fresh = { ...projected, codex_quota: { premium: { ...quota, primary_used_percent: 12, secondary_used_percent: 35, primary_reset_after_at: nextReset, secondary_reset_after_at: nextReset, ratelimited_until: undefined } } };
     view.rerender(<><div data-testid="list"><UpstreamSignals record={fresh} /></div><div data-testid="card"><CodexAccountCard record={fresh} /></div></>);
     expect(card.getByText('Active')).toBeTruthy();
     expect(list.getByText('12%')).toBeTruthy();
+    expect(list.getByText('35%')).toBeTruthy();
     expect(list.queryByText('100%')).toBeNull();
   });
 
