@@ -82,12 +82,12 @@ test.each(['0', '-1', '1.5', 'abc', '100000001'])('invalid numeric draft %s cann
   await waitFor(() => expect(apiMocks.patch).toHaveBeenCalledOnce());
 });
 
-test.each(['edit', 'reset', 'clean'] as const)('credential imports preserve %s overrides against the stored baseline', async action => {
+test.each(['edit', 'reset', 'clean', 'absent'] as const)('credential imports preserve %s overrides against the stored baseline', async action => {
   const storedOverrides = { 'gpt-a': { limits: { max_output_tokens: 32000 } } };
-  renderPage({ ...record, config: { ...record.config, modelOverrides: storedOverrides } } as UpstreamRecord);
+  renderPage(action === 'absent' ? record : { ...record, config: { ...record.config, modelOverrides: storedOverrides } } as UpstreamRecord);
   if (action === 'edit') fireEvent.change(screen.getByRole('textbox', { name: label('outputTokens') }), { target: { value: '64000' } });
   if (action === 'reset') fireEvent.click(screen.getByRole('button', { name: label('overrideResetModel') }));
-  const expected = action === 'clean' ? storedOverrides : action === 'reset' ? {} : { 'gpt-a': { limits: { max_output_tokens: 64000 } } };
+  const expected = action === 'absent' ? undefined : action === 'clean' ? storedOverrides : action === 'reset' ? {} : { 'gpt-a': { limits: { max_output_tokens: 64000 } } };
 
   fireEvent.click(screen.getByRole('button', { name: 'Import credential' }));
   fireEvent.click(screen.getByRole('button', { name: 'Import credential' }));
@@ -96,10 +96,10 @@ test.each(['edit', 'reset', 'clean'] as const)('credential imports preserve %s o
   expect(config().modelOverrides).toEqual(expected);
   expect(config().accounts[0].email).toBe('imported@example.com');
   expect(apiMocks.patch).not.toHaveBeenCalled();
-  await waitFor(() => expect(Boolean(screen.queryByText(i18n.t('dashboard.upstreamEditor.unsaved')))).toBe(action !== 'clean'));
+  await waitFor(() => expect(Boolean(screen.queryByText(i18n.t('dashboard.upstreamEditor.unsaved')))).toBe(action === 'edit' || action === 'reset'));
   save();
   await waitFor(() => expect(apiMocks.patch).toHaveBeenCalledWith({
-    param: { id: 'up_codex' }, json: expect.objectContaining({ config: { modelOverrides: expected } }),
+    param: { id: 'up_codex' }, json: expect.objectContaining({ config: { modelOverrides: expected ?? {} } }),
   }));
   expect(screen.queryByText(i18n.t('dashboard.upstreamEditor.fetchDirty.unsavedCredential'))).toBeNull();
 });
