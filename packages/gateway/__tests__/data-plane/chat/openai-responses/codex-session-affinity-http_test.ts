@@ -14,6 +14,7 @@ import type { ApiKey, User } from '../../../../src/repo/types.ts';
 import { seedModelsCache, storedModelsRefreshIdentity } from '../../../repo/models-cache-fixture.ts';
 import { createSqliteTestDb } from '../../../repo/test-sqlite.ts';
 import { saveUpstreamForTest } from '../../../repo/upstreams.ts';
+import { isReplayableBody } from '@floway-dev/http';
 import { getFetch, initFetch } from '@floway-dev/platform';
 import { openaiResponsesResultToEvents, type OpenAIResponsesResult } from '@floway-dev/protocols/openai-responses';
 import type { UpstreamRecord } from '@floway-dev/provider';
@@ -129,7 +130,7 @@ test('mixed-provider HTTP sessions prioritize a bound Codex account while preser
   const fixture = await setup();
   const native: UpstreamRecord = {
     ...upstream('native', 2), kind: 'custom',
-    config: { baseUrl: 'https://native.example', authStyle: 'none', endpoints: { openaiResponses: {} } },
+    config: { baseUrl: 'https://native.example', authStyle: 'none', ingressHeadersRules: [], endpoints: { openaiResponses: {} } },
     state: {},
   };
   await saveUpstreamForTest(fixture.repo.upstreams, native);
@@ -300,7 +301,7 @@ test('optional Codex identity translation does not reject a native Anthropic doc
   const fixture = await setup();
   const native: UpstreamRecord = {
     ...upstream('native', 0), kind: 'custom',
-    config: { baseUrl: 'https://native.example', authStyle: 'none', endpoints: { anthropicMessages: {} } },
+    config: { baseUrl: 'https://native.example', authStyle: 'none', ingressHeadersRules: [], endpoints: { anthropicMessages: {} } },
     state: {},
     modelsCache: {
       revision: MODEL_CATALOG_REVISION, fetchedAt: Date.now(), lastError: null,
@@ -317,7 +318,9 @@ test('optional Codex identity translation does not reject a native Anthropic doc
   const document = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0xLjQ=' } };
   const fetch = vi.fn<ReturnType<typeof getFetch>>(async (_input, init) => {
     expect(new Headers(init?.headers).get('chatgpt-account-id')).toBeNull();
-    expect(JSON.parse(init!.body as string).messages[0].content).toEqual([document]);
+    const body = init!.body;
+    const text = await new Response(isReplayableBody(body) ? body.open() : body).text();
+    expect(JSON.parse(text).messages[0].content).toEqual([document]);
     return new Response([
       { type: 'message_start', message: { id: 'msg_native', type: 'message', role: 'assistant', model: 'gpt-5.4', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } } },
       { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: 0 } },
