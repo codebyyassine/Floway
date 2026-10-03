@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { UpstreamConfigSidebar } from './config-sidebar';
 import { refineCustomIngressHeaderRules } from './custom-ingress-header-rules-validation';
 import {
+  canonicalJson,
   createBody,
   fetchSavedModelCatalog,
   hasUnsavedDiscoveryInputs,
@@ -40,11 +41,6 @@ import { useRefresh } from '../ui/use-refresh';
 import { parseCodexModelOverrides } from '@floway-dev/provider-codex/model-overrides';
 
 const { Button, Spinner, Text } = fluentComponents;
-
-const canonicalJson = (value: unknown): string => JSON.stringify(value, (_key, item) =>
-  item !== null && typeof item === 'object' && !Array.isArray(item)
-    ? Object.fromEntries(Object.keys(item).toSorted().map(key => [key, item[key]]))
-    : item);
 
 export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData }) {
   const { t } = useTranslation();

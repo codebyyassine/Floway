@@ -287,14 +287,19 @@ export const createBody = (record: UpstreamRecord, values: UpstreamEditorValues,
   } as CreateUpstreamBody;
 };
 
+export const canonicalJson = (value: unknown): string => JSON.stringify(value, (_key, item) =>
+  item !== null && typeof item === 'object' && !Array.isArray(item)
+    ? Object.fromEntries(Object.keys(item).toSorted().map(key => [key, item[key]]))
+    : item);
+
 export const hasUnsavedCredentials = (record: UpstreamRecord, values: UpstreamEditorValues): boolean => {
   const credentialConfig = (config: UpstreamEditorValues['config']) => {
     if (record.kind !== 'codex') return config;
     const { modelOverrides: _overrides, ...identity } = config as Extract<UpstreamRecord, { kind: 'codex' }>['config'];
     return identity;
   };
-  return JSON.stringify(credentialConfig(record.config)) !== JSON.stringify(credentialConfig(values.config))
-    || JSON.stringify(record.state) !== JSON.stringify(values.state);
+  return canonicalJson(credentialConfig(record.config)) !== canonicalJson(credentialConfig(values.config))
+    || canonicalJson(record.state) !== canonicalJson(values.state);
 };
 
 export const updateBody = (record: UpstreamRecord, values: UpstreamEditorValues): UpdateUpstreamBody => {

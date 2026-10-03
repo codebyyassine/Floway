@@ -5,7 +5,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 import type { UpstreamRecord } from '../../../src/api/types';
 import { OutcomeToastProvider } from '../../../src/components/ui/outcome-toast';
-import type { UpstreamEditorValues } from '../../../src/components/upstream-editor/data';
+import { hasUnsavedCredentials, valuesFromRecord, type UpstreamEditorValues } from '../../../src/components/upstream-editor/data';
 import { UpstreamEditorPage } from '../../../src/components/upstream-editor/page';
 import { i18n } from '../../../src/i18n';
 import { upstreamRecord } from '../../api/upstream-fixture';
@@ -97,11 +97,32 @@ test.each(['edit', 'reset', 'clean', 'absent'] as const)('credential imports pre
   expect(config().accounts[0].email).toBe('imported@example.com');
   expect(apiMocks.patch).not.toHaveBeenCalled();
   await waitFor(() => expect(Boolean(screen.queryByText(i18n.t('dashboard.upstreamEditor.unsaved')))).toBe(action === 'edit' || action === 'reset'));
-  save();
-  await waitFor(() => expect(apiMocks.patch).toHaveBeenCalledWith({
-    param: { id: 'up_codex' }, json: expect.objectContaining({ config: { modelOverrides: expected ?? {} } }),
-  }));
+  if (action === 'clean' || action === 'absent') {
+    expect((screen.getByRole('button', { name: i18n.t('dashboard.upstreamEditor.actions.save') }) as HTMLButtonElement).disabled).toBe(true);
+    save();
+    expect(apiMocks.patch).not.toHaveBeenCalled();
+  } else {
+    save();
+    await waitFor(() => expect(apiMocks.patch).toHaveBeenCalledWith({
+      param: { id: 'up_codex' }, json: expect.objectContaining({ config: { modelOverrides: expected ?? {} } }),
+    }));
+  }
   expect(screen.queryByText(i18n.t('dashboard.upstreamEditor.fetchDirty.unsavedCredential'))).toBeNull();
+});
+
+test('imported credentials with reordered account keys allow saving an override draft', () => {
+  const imported = {
+    ...record,
+    config: { accounts: [{ chatgptAccountId: 'account', email: 'imported@example.com', chatgptUserId: 'user', planType: 'plus' }] },
+  } as UpstreamRecord;
+  const values = valuesFromRecord(imported);
+  values.config = {
+    accounts: [{ chatgptAccountId: 'account', chatgptUserId: 'user', email: 'imported@example.com', planType: 'plus' }],
+    modelOverrides: { 'gpt-a': { limits: { max_output_tokens: 64000 } } },
+  };
+  expect(hasUnsavedCredentials(imported, values)).toBe(false);
+  values.config.accounts[0]!.email = 'changed@example.com';
+  expect(hasUnsavedCredentials(imported, values)).toBe(true);
 });
 
 test('field and model reset preserve other models and are only persisted on save', async () => {
