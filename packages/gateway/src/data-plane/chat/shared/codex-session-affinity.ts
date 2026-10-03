@@ -3,12 +3,13 @@ import { getRepo } from '../../../repo/index.ts';
 import type { CanonicalOpenAIResponsesPayload } from '@floway-dev/protocols/openai-responses';
 import type { ModelCandidate } from '@floway-dev/provider';
 import { resolveCodexSessionId } from '@floway-dev/provider-codex';
+import { TranslatorInputError } from '@floway-dev/translate';
 
 export const prepareCodexSessionAffinity = async (
   candidates: readonly ModelCandidate[],
   ctx: ChatGatewayCtx,
   headers: Headers,
-  payload: () => Promise<CanonicalOpenAIResponsesPayload> | CanonicalOpenAIResponsesPayload,
+  payload: CanonicalOpenAIResponsesPayload | (() => Promise<CanonicalOpenAIResponsesPayload | null> | CanonicalOpenAIResponsesPayload | null),
 ): Promise<{
   readonly candidates: readonly ModelCandidate[];
   readonly succeeded: (candidate: ModelCandidate) => Promise<void>;
@@ -16,7 +17,21 @@ export const prepareCodexSessionAffinity = async (
   const firstCodex = candidates.find(candidate => candidate.provider.kind === 'codex');
   const unchanged = { candidates, succeeded: async () => {} };
   if (firstCodex === undefined) return unchanged;
-  const sessionId = resolveCodexSessionId(await payload(), headers);
+  let sessionId: string | null;
+  if (typeof payload === 'function') {
+    sessionId = resolveCodexSessionId({ input: [] }, headers);
+    if (sessionId === null) {
+      try {
+        const translated = await payload();
+        sessionId = translated === null ? null : resolveCodexSessionId(translated, headers);
+      } catch (error) {
+        if (!(error instanceof TranslatorInputError)) throw error;
+        return unchanged;
+      }
+    }
+  } else {
+    sessionId = resolveCodexSessionId(payload, headers);
+  }
   // A request without caller identity or a first user message has no reusable
   // session. Keep the existing fresh-ID and initial-selection behavior.
   if (sessionId === null) return unchanged;

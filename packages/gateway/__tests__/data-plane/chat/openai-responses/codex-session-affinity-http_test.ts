@@ -231,6 +231,69 @@ test.each([
   expect(fixture.calls).toEqual(['a', 'a']);
 });
 
+test.each([
+  { fileData: { mimeType: 'text/plain', fileUri: 'gs://example/file' } },
+  { executableCode: { language: 'PYTHON', code: 'print(1)' } },
+  { codeExecutionResult: { outcome: 'OUTCOME_OK', output: '1' } },
+])('Gemini affinity preserves source preprocessing for %j', async unsupported => {
+  const fixture = await setup();
+  for (const session of [null, 'explicit-gemini']) {
+    for (const order of [0.99, 0]) {
+      fixture.order.mockReturnValue(order);
+      const response = await fixture.app.request('/v1beta/models/codex:streamGenerateContent', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(session === null ? {} : { 'session-id': session }) },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'first turn', ...unsupported }, unsupported] }],
+          systemInstruction: { parts: [{ text: 'system', ...unsupported }, unsupported] },
+        }),
+      });
+      const text = await response.text();
+      expect(response.status, text).toBe(200);
+    }
+  }
+  expect(fixture.calls).toEqual(['a', 'a', 'a', 'a']);
+});
+
+test('optional Codex identity translation does not reject a native Anthropic document request', async () => {
+  const fixture = await setup();
+  const native: UpstreamRecord = {
+    ...upstream('native', 0), kind: 'custom',
+    config: { baseUrl: 'https://native.example', authStyle: 'none', endpoints: { anthropicMessages: {} } },
+    state: {},
+    modelsCache: {
+      revision: MODEL_CATALOG_REVISION, fetchedAt: Date.now(), lastError: null,
+      models: [stubProviderModel({ id: 'gpt-5.4', endpoints: { anthropicMessages: {} } })],
+    },
+  };
+  await saveUpstreamForTest(fixture.repo.upstreams, native);
+  expect(await seedModelsCache(fixture.repo.upstreams, native.id, await storedModelsRefreshIdentity(fixture.repo.upstreams, native.id), native.modelsCache!)).toBe(true);
+  await fixture.repo.modelAliases.insert({
+    id: 'native-first', name: 'native-first', kind: 'chat', selection: 'random', displayName: null,
+    visibleInModelsList: true, announcedMetadata: null, sortOrder: 1, createdAt: key.createdAt, updatedAt: key.createdAt,
+    targets: [{ target_model_id: 'native/gpt-5.4', rules: {} }, { target_model_id: 'a/gpt-5.4', rules: {} }],
+  });
+  const document = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0xLjQ=' } };
+  const fetch = vi.fn<ReturnType<typeof getFetch>>(async (_input, init) => {
+    expect(new Headers(init?.headers).get('chatgpt-account-id')).toBeNull();
+    expect(JSON.parse(init!.body as string).messages[0].content).toEqual([document]);
+    return new Response([
+      { type: 'message_start', message: { id: 'msg_native', type: 'message', role: 'assistant', model: 'gpt-5.4', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } } },
+      { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: 0 } },
+      { type: 'message_stop' },
+    ].map(event => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } });
+  });
+  initFetch(fetch);
+  const response = await fixture.app.request('/v1/messages', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'native-first', messages: [{ role: 'user', content: [document] }], max_tokens: 100, stream: true }),
+  });
+  const text = await response.text();
+  expect(response.status, text).toBe(200);
+  expect(text).toContain('message_stop');
+  expect(fetch).toHaveBeenCalledOnce();
+});
+
 test('Responses compaction shares the generation session account', async () => {
   const fixture = await setup();
   await fixture.send('compacting');

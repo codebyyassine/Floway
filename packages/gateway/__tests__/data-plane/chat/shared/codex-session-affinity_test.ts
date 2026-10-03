@@ -6,6 +6,7 @@ import { InMemoryRepo } from '../../../repo/memory.ts';
 import { mockChatGatewayCtx } from '../../../test-utils/gateway-ctx.ts';
 import type { CanonicalOpenAIResponsesPayload } from '@floway-dev/protocols/openai-responses';
 import { stubModelCandidate } from '@floway-dev/test-utils';
+import { TranslatorInputError } from '@floway-dev/translate';
 
 const candidate = (id: string, kind: 'custom' | 'codex') => {
   const base = stubModelCandidate();
@@ -13,6 +14,44 @@ const candidate = (id: string, kind: 'custom' | 'codex') => {
 };
 const payload: CanonicalOpenAIResponsesPayload = { model: 'gpt-5.4', input: [], stream: true };
 const headers = new Headers({ 'session-id': 'session' });
+
+test.each(['session-id', 'session_id', 'x-codex-turn-metadata'])('explicit %s identity bypasses translated payload preparation', async header => {
+  initRepo(new InMemoryRepo());
+  const ctx = mockChatGatewayCtx();
+  const a = candidate('a', 'codex');
+  const b = candidate('b', 'codex');
+  const produce = vi.fn(() => { throw new TranslatorInputError('not translatable'); });
+  const explicit = new Headers({ [header]: header === 'x-codex-turn-metadata' ? '{"session_id":"session"}' : 'session' });
+  await prepareCodexSessionAffinity([a, b], ctx, headers, payload);
+  const selection = await prepareCodexSessionAffinity([b, a], ctx, explicit, produce);
+  expect(selection.candidates).toEqual([a, b]);
+  expect(produce).not.toHaveBeenCalled();
+});
+
+test('untranslatable conversation identity leaves candidate dispatch and selection intact', async () => {
+  const repo = new InMemoryRepo();
+  initRepo(repo);
+  const claim = vi.spyOn(repo.codexSessionAffinity, 'claim');
+  const candidates = [candidate('custom', 'custom'), candidate('codex', 'codex')];
+  const produce = vi.fn(() => { throw new TranslatorInputError('not translatable'); });
+  const selection = await prepareCodexSessionAffinity(candidates, mockChatGatewayCtx(), new Headers(), produce);
+  expect(produce).toHaveBeenCalledOnce();
+  expect(selection.candidates).toBe(candidates);
+  await selection.succeeded(candidates[0]);
+  expect(claim).not.toHaveBeenCalled();
+});
+
+test('canonical body identity retains precedence over headers', async () => {
+  initRepo(new InMemoryRepo());
+  const ctx = mockChatGatewayCtx();
+  const a = candidate('a', 'codex');
+  const b = candidate('b', 'codex');
+  await prepareCodexSessionAffinity([a, b], ctx, headers, payload);
+  const selection = await prepareCodexSessionAffinity([b, a], ctx, new Headers({ 'session-id': 'other' }), {
+    ...payload, client_metadata: { session_id: 'session' },
+  });
+  expect(selection.candidates).toEqual([a, b]);
+});
 
 test('other providers retain exact selection and never evaluate Codex identity or access its repository', async () => {
   const repo = new InMemoryRepo();

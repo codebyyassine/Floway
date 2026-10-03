@@ -1,6 +1,8 @@
 import { analyzeGeminiGenerateContentAffinity } from './affinity/ingress.ts';
 import { geminiGenerateContentAttempt, geminiGenerateContentCountTokensTarget, geminiGenerateContentGenerateTarget } from './attempt.ts';
 import { renderGeminiGenerateContentFailure } from './errors.ts';
+import { stripUnsupportedPartFieldsFromPayload } from './interceptors/strip-unsupported-part-fields.ts';
+import { stripUnsupportedToolsFromPayload } from './interceptors/strip-unsupported-tools.ts';
 import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
@@ -45,8 +47,13 @@ export const geminiGenerateContentServe = {
     if ('kind' in selection) return renderGeminiGenerateContentFailure(selection, 'generate');
     if (selection.candidates.length === 0) return renderGeminiGenerateContentFailure(noViableCandidateFailure(sawModel, model, failedUpstreams), 'generate');
 
-    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () =>
-      (await translateGeminiGenerateContentViaOpenAIResponses(payload, { model })).target);
+    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => {
+      const cleaned = structuredClone(payload);
+      stripUnsupportedPartFieldsFromPayload(cleaned);
+      stripUnsupportedToolsFromPayload(cleaned);
+      delete cleaned.safetySettings;
+      return (await translateGeminiGenerateContentViaOpenAIResponses(cleaned, { model })).target;
+    });
     // Gemini generateContent carries the requested model in its URL, so affinity preparation
     // owns each candidate payload while dispatch uses the candidate's canonical model.
     return await iterateCandidates(

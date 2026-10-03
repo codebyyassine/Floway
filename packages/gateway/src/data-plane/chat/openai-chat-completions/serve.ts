@@ -35,7 +35,7 @@ export const openaiChatCompletionsServe = {
     if (selection.candidates.length === 0) return renderOpenAIChatCompletionsFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams));
 
     const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () =>
-      (await translateOpenAIChatCompletionsViaOpenAIResponses(payload, { model: payload.model })).target);
+      (await translateOpenAIChatCompletionsViaOpenAIResponses(structuredClone(payload), { model: payload.model })).target);
     // Try each affinity-selected candidate in order. A successful attempt (SSE
     // stream opened) is the final answer; an api-error or internal-error
     // from one candidate falls through to the next so the gateway absorbs

@@ -22,7 +22,7 @@ export const openaiResponsesServe = {
     const { payload, ctx, headers } = args;
     const plan = await prepareOpenAIResponsesServePlan({ payload, ctx });
     if (plan.kind === 'failure') return plan.result;
-    const session = await prepareCodexSessionAffinity(plan.candidates, ctx, headers, () => plan.affinitySelection.payloadFor(plan.candidates[0]!));
+    const session = await prepareCodexSessionAffinity(plan.candidates, ctx, headers, plan.affinitySelection.payloadFor(plan.candidates[0]!));
     // Iterate the affinity-selected candidates: success (SSE stream opened) is the
     // final answer; per-candidate failures fall through so a transient
     // 5xx/429/network does not become the request's verdict when another
@@ -66,7 +66,7 @@ export const openaiResponsesServe = {
     // re-tags the result as compact on the way out.
     const plan = await prepareOpenAIResponsesServePlan({ payload, ctx });
     if (plan.kind === 'failure') return plan.result;
-    const session = await prepareCodexSessionAffinity(plan.candidates, ctx, headers, () => plan.affinitySelection.payloadFor(plan.candidates[0]!));
+    const session = await prepareCodexSessionAffinity(plan.candidates, ctx, headers, plan.affinitySelection.payloadFor(plan.candidates[0]!));
     const result = await iterateCandidates(
       session.candidates,
       'openaiResponsesServe.compact',

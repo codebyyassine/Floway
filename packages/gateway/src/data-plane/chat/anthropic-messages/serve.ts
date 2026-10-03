@@ -1,6 +1,7 @@
 import { analyzeAnthropicMessagesAffinity } from './affinity/ingress.ts';
 import { anthropicMessagesAttempt, anthropicMessagesGenerateTarget, anthropicMessagesCountTokensTarget } from './attempt.ts';
 import { renderAnthropicMessagesFailure } from './errors.ts';
+import { prepareAnthropicMessagesWebSearchShimRequest } from './interceptors/web-search-shim.ts';
 import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
@@ -41,8 +42,11 @@ export const anthropicMessagesServe = {
     if ('kind' in selection) return renderAnthropicMessagesFailure(selection, 'generate');
     if (selection.candidates.length === 0) return renderAnthropicMessagesFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams), 'generate');
 
-    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () =>
-      (await translateAnthropicMessagesViaOpenAIResponses(payload, { model: payload.model })).target);
+    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => {
+      const prepared = prepareAnthropicMessagesWebSearchShimRequest(structuredClone(payload));
+      if (prepared.type !== 'ok') return null;
+      return (await translateAnthropicMessagesViaOpenAIResponses(prepared.payload, { model: payload.model })).target;
+    });
     // Try each affinity-selected candidate in order. A successful attempt (SSE
     // stream opened) is the final answer; an api-error or internal-error
     // from one candidate falls through to the next so the gateway absorbs
