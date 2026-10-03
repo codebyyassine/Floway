@@ -48,9 +48,8 @@ test('canonical body identity retains precedence over headers', async () => {
   const a = candidate('a', 'codex');
   const b = candidate('b', 'codex');
   await prepareCodexSessionAffinity([a, b], ctx, headers, payload);
-  const selection = await prepareCodexSessionAffinity([b, a], ctx, new Headers({ 'session-id': 'other' }), {
-    ...payload, client_metadata: { session_id: 'session' },
-  });
+  const body = { ...payload, client_metadata: { session_id: 'session' } };
+  const selection = await prepareCodexSessionAffinity([b, a], ctx, new Headers({ 'session-id': 'other' }), body);
   expect(selection.candidates).toEqual([a, b]);
 });
 
