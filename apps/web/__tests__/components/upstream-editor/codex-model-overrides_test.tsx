@@ -17,9 +17,17 @@ vi.mock('../../../src/api/client', () => ({
   callApi: (operation: () => unknown) => operation(),
 }));
 vi.mock('../../../src/components/upstream-editor/config-sidebar', () => ({
-  UpstreamConfigSidebar: () => {
+  UpstreamConfigSidebar: ({ record, onPatch }: {
+    record: UpstreamRecord;
+    onPatch: (patch: { config?: unknown; state?: unknown }, persisted?: boolean) => void;
+  }) => {
     const { watch } = useFormContext<UpstreamEditorValues>();
-    return <output data-testid="config">{JSON.stringify(watch('config'))}</output>;
+    const importedConfig = { ...record.config, accounts: [{ email: 'imported@example.com', chatgptAccountId: null, chatgptUserId: null, planType: null }] };
+    return <>
+      <output data-testid="config">{JSON.stringify(watch('config'))}</output>
+      <button type="button" onClick={() => onPatch({ config: importedConfig, state: { accounts: [] } }, true)}>Import credential</button>
+      <button type="button" onClick={() => onPatch({ state: { accounts: [] } }, true)}>Probe quota</button>
+    </>;
   },
 }));
 const defaults = {
@@ -72,6 +80,28 @@ test.each(['0', '-1', '1.5', 'abc', '100000001'])('invalid numeric draft %s cann
   fireEvent.click(screen.getByRole('button', { name: i18n.t('dashboard.upstreamEditor.models.overrideResetField', { field: label('outputTokens') }) }));
   save();
   await waitFor(() => expect(apiMocks.patch).toHaveBeenCalledOnce());
+});
+
+test.each(['edit', 'reset', 'clean'] as const)('credential imports preserve %s overrides against the stored baseline', async action => {
+  const storedOverrides = { 'gpt-a': { limits: { max_output_tokens: 32000 } } };
+  renderPage({ ...record, config: { ...record.config, modelOverrides: storedOverrides } } as UpstreamRecord);
+  if (action === 'edit') fireEvent.change(screen.getByRole('textbox', { name: label('outputTokens') }), { target: { value: '64000' } });
+  if (action === 'reset') fireEvent.click(screen.getByRole('button', { name: label('overrideResetModel') }));
+  const expected = action === 'clean' ? storedOverrides : action === 'reset' ? {} : { 'gpt-a': { limits: { max_output_tokens: 64000 } } };
+
+  fireEvent.click(screen.getByRole('button', { name: 'Import credential' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Import credential' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Probe quota' }));
+
+  expect(config().modelOverrides).toEqual(expected);
+  expect(config().accounts[0].email).toBe('imported@example.com');
+  expect(apiMocks.patch).not.toHaveBeenCalled();
+  await waitFor(() => expect(Boolean(screen.queryByText(i18n.t('dashboard.upstreamEditor.unsaved')))).toBe(action !== 'clean'));
+  save();
+  await waitFor(() => expect(apiMocks.patch).toHaveBeenCalledWith({
+    param: { id: 'up_codex' }, json: expect.objectContaining({ config: { modelOverrides: expected } }),
+  }));
+  expect(screen.queryByText(i18n.t('dashboard.upstreamEditor.fetchDirty.unsavedCredential'))).toBeNull();
 });
 
 test('field and model reset preserve other models and are only persisted on save', async () => {

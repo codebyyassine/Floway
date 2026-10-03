@@ -189,7 +189,12 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
   };
 
   const applyProviderPatch = (patch: { config?: unknown; state?: unknown }, persisted = false) => {
-    if (patch.config !== undefined) setValue('config', patch.config as UpstreamEditorValues['config'], { shouldDirty: !persisted });
+    if (patch.config !== undefined) {
+      const config = recordRef.current.kind === 'codex'
+        ? { ...patch.config as UpstreamEditorValues['config'], modelOverrides: (getValues('config') as Extract<UpstreamRecord, { kind: 'codex' }>['config']).modelOverrides }
+        : patch.config as UpstreamEditorValues['config'];
+      setValue('config', config, { shouldDirty: !persisted });
+    }
     if (patch.state !== undefined) setValue('state', patch.state as UpstreamEditorValues['state'], { shouldDirty: !persisted });
     const changes = { ...(patch.config !== undefined ? { config: patch.config } : {}), ...(patch.state !== undefined ? { state: patch.state } : {}) };
     const patched = { ...recordRef.current, ...changes } as UpstreamRecord;
