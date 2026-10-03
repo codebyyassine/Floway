@@ -1,4 +1,4 @@
-import { modelsCacheStatus, reshapeModelForDashboard } from './models-cache-projection.ts';
+import { cachedModelsForDashboard, modelsCacheStatus, reshapeModelForDashboard } from './models-cache-projection.ts';
 import { upstreamErrorMessage as errorMessage } from './shared.ts';
 import { discoverDraftModels, isModelsRefreshConfigurationError, modelsRefreshErrorMessage, modelsRefreshTarget, refreshModelsExplicit } from '../../execution/models-refresh.ts';
 import type { AuthedContext } from '../../middleware/auth.ts';
@@ -71,8 +71,9 @@ export const fetchSavedModels = async (c: AuthedContext<'/:id/list-models'>) => 
     const refreshed = await getRepo().upstreams.getById(id);
     if (refreshed === null || modelsRefreshTarget(refreshed).inputHash !== target.inputHash
       || refreshed.configVersion !== target.configVersion) return c.json({ error: 'Upstream changed during models refresh' }, 409);
-    const data = record.kind === 'custom' ? result.discovered : result.models.map(reshapeModelForDashboard);
-    if (data === undefined) throw new Error(`Upstream ${id} models refresh did not return a catalog`);
+    const data = record.kind === 'custom' ? result.discovered
+      : record.kind === 'codex' ? cachedModelsForDashboard(refreshed) : result.models.map(reshapeModelForDashboard);
+    if (data === undefined || data === null) throw new Error(`Upstream ${id} models refresh did not return a catalog`);
     return c.json({ kind: record.kind, data, modelsCache: modelsCacheStatus(refreshed) });
   } catch (e) {
     if (!(e instanceof ProviderModelsUnavailableError) && !isModelsRefreshConfigurationError(e) && !malformedConfigResponse(e)) throw e;

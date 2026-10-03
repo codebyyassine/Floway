@@ -2,6 +2,7 @@ import type { ListedUpstreamModel, ModelsCacheStatus } from './types.ts';
 import { storedCatalogSize } from '../../data-plane/providers/catalog.ts';
 import type { StoredUpstreamRecord } from '../../repo/types.ts';
 import type { ProviderModel, UpstreamModelConfig } from '@floway-dev/provider';
+import { applyCodexModelOverrides, assertCodexUpstreamRecord, codexModelContextWindow } from '@floway-dev/provider-codex';
 
 export const reshapeModelForDashboard = (model: ProviderModel): ListedUpstreamModel => ({
   upstreamModelId: model.upstreamModelId,
@@ -21,6 +22,20 @@ export const cachedModelsForDashboard = (record: StoredUpstreamRecord): Upstream
   if (cache === null || cache.fetchedAt <= 0) return null;
   if (record.kind === 'custom') return cache.discovered ?? null;
   if (record.kind === 'azure') return [];
+  if (record.kind === 'codex') {
+    assertCodexUpstreamRecord(record);
+    return cache.models.map(model => {
+      const effective = reshapeModelForDashboard(applyCodexModelOverrides(model, record.config.modelOverrides));
+      if (model.kind !== 'chat') return effective;
+      return {
+        ...effective,
+        codexDefaults: {
+          ...reshapeModelForDashboard(model),
+          limits: { ...model.limits, max_context_window_tokens: codexModelContextWindow(model).context_window },
+        },
+      };
+    });
+  }
   return cache.models.map(reshapeModelForDashboard);
 };
 

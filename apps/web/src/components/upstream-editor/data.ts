@@ -287,6 +287,16 @@ export const createBody = (record: UpstreamRecord, values: UpstreamEditorValues,
   } as CreateUpstreamBody;
 };
 
+export const hasUnsavedCredentials = (record: UpstreamRecord, values: UpstreamEditorValues): boolean => {
+  const credentialConfig = (config: UpstreamEditorValues['config']) => {
+    if (record.kind !== 'codex') return config;
+    const { modelOverrides: _overrides, ...identity } = config as Extract<UpstreamRecord, { kind: 'codex' }>['config'];
+    return identity;
+  };
+  return JSON.stringify(credentialConfig(record.config)) !== JSON.stringify(credentialConfig(values.config))
+    || JSON.stringify(record.state) !== JSON.stringify(values.state);
+};
+
 export const updateBody = (record: UpstreamRecord, values: UpstreamEditorValues): UpdateUpstreamBody => {
   return {
     name: values.name.trim(),
@@ -296,7 +306,8 @@ export const updateBody = (record: UpstreamRecord, values: UpstreamEditorValues)
     disabled_public_model_ids: values.disabledPublicModelIds,
     proxy_fallback_list: values.proxyFallbackList,
     model_prefix: values.modelPrefix,
-    ...(manualModelsSupported(record) ? { config: configFromValues(record, values) } : {}),
+    ...(manualModelsSupported(record) ? { config: configFromValues(record, values) }
+      : record.kind === 'codex' ? { config: { modelOverrides: (values.config as Extract<UpstreamRecord, { kind: 'codex' }>['config']).modelOverrides ?? {} } } : {}),
   } as UpdateUpstreamBody;
 };
 

@@ -221,6 +221,7 @@ export type UpstreamRecord =
   | (DashboardUpstreamRecordBase & { kind: 'ollama'; config: OllamaUpstreamConfig; state: StoredOllamaUpstreamState | null });
 
 export interface ListedUpstreamModel extends UpstreamModelConfig {
+  codexDefaults?: UpstreamModelConfig;
   upstreamModelId: string;
   publicModelId: string;
   endpoints: ModelEndpoints;

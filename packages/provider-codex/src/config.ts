@@ -1,4 +1,5 @@
 import { assertAllowedObjectKeys, assertStringOrNull } from './auth/guards.ts';
+import { parseCodexModelOverrides, type CodexModelOverrides } from './model-overrides.ts';
 import type { UpstreamRecord } from '@floway-dev/provider';
 
 // One Codex account's operator-managed identity, derived from explicit import
@@ -24,6 +25,7 @@ export interface CodexAccountIdentity {
 // ordering is operator-controlled and stable.
 export interface CodexUpstreamConfig {
   accounts: [CodexAccountIdentity];
+  modelOverrides?: CodexModelOverrides;
 }
 
 export type CodexUpstreamRecord = UpstreamRecord & {
@@ -33,7 +35,7 @@ export type CodexUpstreamRecord = UpstreamRecord & {
 
 const IDENTITY_KEYS: readonly (keyof CodexAccountIdentity)[] = ['email', 'chatgptAccountId', 'chatgptUserId', 'planType'];
 
-const CONFIG_KEYS_SET: ReadonlySet<string> = new Set(['accounts']);
+const CONFIG_KEYS_SET: ReadonlySet<string> = new Set(['accounts', 'modelOverrides']);
 const IDENTITY_KEYS_SET: ReadonlySet<string> = new Set(IDENTITY_KEYS);
 
 // The generic upstream PATCH may correct display metadata an import could not
@@ -45,7 +47,14 @@ export const patchCodexIdentityMetadata = (
   patch: Record<string, unknown>,
 ): CodexUpstreamConfig => {
   assertAllowedObjectKeys(patch, 'Codex config metadata patch', CONFIG_KEYS_SET);
-  if (patch.accounts === undefined) return current;
+  const modelOverrides = patch.modelOverrides === undefined
+    ? current.modelOverrides
+    : parseCodexModelOverrides(patch.modelOverrides);
+  const config: CodexUpstreamConfig = {
+    ...current,
+    ...(modelOverrides === undefined ? {} : { modelOverrides }),
+  };
+  if (patch.accounts === undefined) return config;
   if (!Array.isArray(patch.accounts) || patch.accounts.length !== 1) {
     throw new TypeError('Codex config metadata patch accounts must hold exactly one account');
   }
@@ -64,13 +73,14 @@ export const patchCodexIdentityMetadata = (
     assertStringOrNull(value, `Codex config metadata patch ${key}`);
     next[key] = value;
   }
-  return { accounts: [next] };
+  return { ...config, accounts: [next] };
 };
 
 function assertCodexUpstreamConfig(value: unknown): asserts value is CodexUpstreamConfig {
   // config_json round-trips through canonical serialization, so any surviving
   // key is persisted. Reject unknown keys to keep the on-disk shape closed.
   const obj = assertAllowedObjectKeys(value, 'CodexUpstreamConfig', CONFIG_KEYS_SET);
+  if (obj.modelOverrides !== undefined) parseCodexModelOverrides(obj.modelOverrides);
   if (!Array.isArray(obj.accounts)) {
     throw new TypeError('CodexUpstreamConfig.accounts must be an array');
   }

@@ -4,7 +4,7 @@ import { buildKeyToUserMap } from '../../src/control-plane/shared/key-to-user.ts
 import { normalizeDisabledPublicModelIds } from '../../src/repo/disabled-public-models.ts';
 import { normalizeFlagOverrides } from '../../src/repo/flag-overrides.ts';
 import { MODEL_CATALOG_REVISION, storedModelErrorMessage } from '../../src/repo/models-cache-contract.ts';
-import { matchesModelsRefreshInputs } from '../../src/repo/models-refresh-inputs.ts';
+import { catalogConfigChanged, matchesModelsRefreshInputs } from '../../src/repo/models-refresh-inputs.ts';
 import {
   assertSameStoredOpenAIResponsesItem,
   cloneStoredOpenAIResponsesItem,
@@ -777,7 +777,7 @@ class MemoryUpstreamRepo implements UpstreamRepo {
       createdAt: existing.createdAt,
       configVersion,
       state: replaceState ? upstream.state : existing.state,
-      modelsCache: modelConfigChanged ? null : transportChanged && existing.modelsCache
+      modelsCache: catalogConfigChanged(previous, upstream) ? null : transportChanged && existing.modelsCache
         ? { ...existing.modelsCache, lastError: null } : existing.modelsCache,
     });
     this.store.set(upstream.id, next);

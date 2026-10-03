@@ -4,6 +4,7 @@ import type { CodexCatalogCapabilities } from '../../../src/data-plane/codex/cat
 import { assembleCodexCatalog } from '../../../src/data-plane/codex/models.ts';
 import type { AddressableIdEntry } from '../../../src/data-plane/shared/listing/addressable.ts';
 import type { InternalModel } from '@floway-dev/provider';
+import { applyCodexModelOverrides } from '@floway-dev/provider-codex';
 import { stubModelCandidate, stubProviderModel } from '@floway-dev/test-utils';
 
 const bundled = {
@@ -38,6 +39,19 @@ const ultraCapabilities: CodexCatalogCapabilities = {
 };
 
 describe('assembleCodexCatalog', () => {
+  test('Codex overrides reach private catalog context, image capabilities, and reasoning', () => {
+    const provider = { ...stubModelCandidate().provider, kind: 'codex' as const };
+    const raw = stubProviderModel({
+      id: 'gpt-5.5', upstreamModelId: 'gpt-5.5',
+      limits: { max_context_window_tokens: 400000 },
+      providerData: { contextWindow: 200000, useResponsesLite: false },
+      chat: { modalities: { input: ['text', 'image'], output: ['text'] }, image_detail_original: true, reasoning: { effort: { supported: ['low', 'high'], default: 'high' } } },
+    });
+    const effective = applyCodexModelOverrides(raw, { 'gpt-5.5': { limits: { max_context_window_tokens: 300000 }, imageInput: false, imageDetailOriginal: false, reasoningEffort: { supported: ['low'], default: 'low' } } });
+    const model = { ...chat('gpt-5.5'), limits: effective.limits, chat: effective.chat, providerModels: { [provider.upstreamId]: effective } };
+    const out = assembleCodexCatalog(bundled, [{ ...entry(model), upstreams: [provider] }]);
+    expect(out.models[0]).toMatchObject({ context_window: 300000, max_context_window: 300000, input_modalities: ['text'], supports_image_detail_original: false, supported_reasoning_levels: [{ effort: 'low', description: '' }], default_reasoning_level: 'low' });
+  });
   test('uses the primary Codex provider default for a prefixed model without a matching client entry', () => {
     const provider = { ...stubModelCandidate().provider, kind: 'codex' as const };
     const model = {

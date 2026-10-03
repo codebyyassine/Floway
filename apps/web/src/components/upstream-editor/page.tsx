@@ -11,6 +11,7 @@ import {
   createBody,
   fetchSavedModelCatalog,
   hasUnsavedDiscoveryInputs,
+  hasUnsavedCredentials,
   isPersisted,
   modelPrefixIsValid,
   previewDraftModelCatalog,
@@ -36,6 +37,7 @@ import { useOutcomeToasts } from '../ui/outcome-toast';
 import { Panel } from '../ui/panel';
 import { useDialogInvocation } from '../ui/use-dialog-invocation';
 import { useRefresh } from '../ui/use-refresh';
+import { parseCodexModelOverrides } from '@floway-dev/provider-codex/model-overrides';
 
 const { Button, Spinner, Text } = fluentComponents;
 
@@ -87,6 +89,11 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
     if (values.modelPrefix && !modelPrefixIsValid(values.modelPrefix.prefix)) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.prefixInvalid', path: ['modelPrefix'] });
     if (values.modelPrefix?.addressable.length === 0) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.validation.prefix', path: ['modelPrefix'] });
     if (!modelsAreValid(values.manualModels)) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.validation.models', path: ['manualModels'] });
+    if (record.kind === 'codex' && values.config.modelOverrides !== undefined) {
+      try { parseCodexModelOverrides(values.config.modelOverrides); } catch {
+        ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.models.overrideInvalid', path: ['config'] });
+      }
+    }
     if (record.kind === 'custom') {
       const config = values.config as Extract<UpstreamRecord, { kind: 'custom' }>['config'];
       refineCustomIngressHeaderRules(config.ingressHeadersRules, ctx);
@@ -146,7 +153,10 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
   }, [hasUnsavedChanges]);
 
   const manualModelsDirty = Boolean(formState.dirtyFields.manualModels);
-  const discoveryInputsDirty = hasUnsavedDiscoveryInputs(formState.dirtyFields)
+  const discoveryDirtyFields = record.kind === 'codex' && !hasUnsavedCredentials(record, getValues())
+    ? { ...formState.dirtyFields, config: false }
+    : formState.dirtyFields;
+  const discoveryInputsDirty = hasUnsavedDiscoveryInputs(discoveryDirtyFields)
     || (record.kind === 'ollama' && manualModelsDirty);
   const oauth = record.kind === 'copilot' || record.kind === 'codex' || record.kind === 'claude-code';
   const fetchDialog = useDialogInvocation<void>();
@@ -200,7 +210,9 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
   };
 
   const submitForm = async (): Promise<UpstreamRecord | null> => {
-    if (oauth && isPersisted(record) && (formState.dirtyFields.config || formState.dirtyFields.state)) {
+    if (oauth && isPersisted(record) && (record.kind === 'codex'
+      ? hasUnsavedCredentials(record, getValues())
+      : formState.dirtyFields.config || formState.dirtyFields.state)) {
       setSaveError(t('dashboard.upstreamEditor.fetchDirty.unsavedCredential'));
       return null;
     }
@@ -253,7 +265,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
     {/* A column rather than a row template: the error bar is only sometimes
         there, and a named row for it leaves an empty one and a gap when it
         is not. */}
-    <div className="flex flex-col gap-[14px] h-full min-h-0">
+    <div className="flex flex-col gap-[14px] h-full min-h-0 max-[1050px]:h-auto">
       <header className="flex items-center gap-3 min-w-0">
         <BackNavigationButton to="/dashboard/providers/upstreams">{t('dashboard.upstreamEditor.actions.back')}</BackNavigationButton>
         {hasUnsavedChanges && <Text size={200} className="text-fui-fg2">{t('dashboard.upstreamEditor.unsaved')}</Text>}
@@ -268,6 +280,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
         </div>
       </header>
       {saveError && <OutcomeMessageBar onDismiss={() => setSaveError(null)}>{saveError}</OutcomeMessageBar>}
+      {formState.errors.config?.message === 'dashboard.upstreamEditor.models.overrideInvalid' && <OutcomeMessageBar>{t('dashboard.upstreamEditor.models.overrideInvalid')}</OutcomeMessageBar>}
       <div className={`grid grid-cols-[380px_minmax(0,1fr)] ${PANE_GAP_CLASS} min-h-0 min-w-0 flex-1 max-[1050px]:grid-cols-1`}>
         <Panel className="min-h-0 min-w-0 overflow-hidden" padding="flush">
           <UpstreamConfigSidebar
