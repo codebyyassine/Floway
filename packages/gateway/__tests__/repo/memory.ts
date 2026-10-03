@@ -1486,6 +1486,11 @@ class MemoryAgentSetupRepo implements AgentSetupRepository {
 class MemoryCodexSessionAffinityRepo implements CodexSessionAffinityRepo {
   private readonly bindings = new Map<string, CodexSessionBinding>();
 
+  get(apiKeyId: string, sessionKey: string): Promise<CodexSessionBinding | null> {
+    const binding = this.bindings.get(JSON.stringify([apiKeyId, sessionKey]));
+    return Promise.resolve(binding === undefined ? null : { ...binding });
+  }
+
   claim(apiKeyId: string, sessionKey: string, upstreamId: string): Promise<CodexSessionBinding> {
     const key = JSON.stringify([apiKeyId, sessionKey]);
     const selected = this.bindings.get(key) ?? { upstreamId, revision: 0 };

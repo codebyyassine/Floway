@@ -1,6 +1,7 @@
 import { expect, test, vi } from 'vitest';
 
 import { prepareCodexSessionAffinity } from '../../../../src/data-plane/chat/shared/codex-session-affinity.ts';
+import { iterateCandidates } from '../../../../src/data-plane/shared/iterate-candidates.ts';
 import { initRepo } from '../../../../src/repo/index.ts';
 import { InMemoryRepo } from '../../../repo/memory.ts';
 import { mockChatGatewayCtx } from '../../../test-utils/gateway-ctx.ts';
@@ -66,7 +67,7 @@ test('other providers retain exact selection and never evaluate Codex identity o
   expect(claim).not.toHaveBeenCalled();
 });
 
-test('Codex affinity reorders only Codex slots and never restores a filtered account', async () => {
+test('Codex affinity prioritizes its eligible bound account and never restores a filtered account', async () => {
   initRepo(new InMemoryRepo());
   const ctx = mockChatGatewayCtx();
   const a = candidate('a', 'codex');
@@ -75,12 +76,78 @@ test('Codex affinity reorders only Codex slots and never restores a filtered acc
   const customB = candidate('custom-b', 'custom');
   await prepareCodexSessionAffinity([a, b], ctx, headers, () => payload);
   const reordered = await prepareCodexSessionAffinity([customA, b, customB, a], ctx, headers, () => payload);
-  expect(reordered.candidates).toEqual([customA, a, customB, b]);
+  expect(reordered.candidates).toEqual([a, customA, b, customB]);
   const filtered = await prepareCodexSessionAffinity([b], ctx, headers, () => payload);
   expect(filtered.candidates).toEqual([b]);
   await filtered.succeeded(b);
   const next = await prepareCodexSessionAffinity([a, b], ctx, headers, () => payload);
   expect(next.candidates).toEqual([b, a]);
+});
+
+test('unbound mixed-provider sessions retain initial selection and bind only a successful Codex fallback', async () => {
+  const repo = new InMemoryRepo();
+  initRepo(repo);
+  const ctx = mockChatGatewayCtx();
+  const a = candidate('a', 'codex');
+  const b = candidate('b', 'codex');
+  const custom = candidate('custom', 'custom');
+  const claim = vi.spyOn(repo.codexSessionAffinity, 'claim');
+  const initial = [custom, a, b];
+  const first = await prepareCodexSessionAffinity(initial, ctx, headers, payload);
+  expect(first.candidates).toBe(initial);
+  expect(claim).not.toHaveBeenCalled();
+  await first.succeeded(custom);
+  expect(claim).not.toHaveBeenCalled();
+  const fallback = await prepareCodexSessionAffinity(initial, ctx, headers, payload);
+  expect(fallback.candidates).toBe(initial);
+  await fallback.succeeded(b);
+  expect(claim).toHaveBeenCalledOnce();
+  const next = await prepareCodexSessionAffinity(initial, ctx, headers, payload);
+  expect(next.candidates).toEqual([b, custom, a]);
+});
+
+test('mixed-provider dispatch tries the bound account before native providers and retains failure handling', async () => {
+  initRepo(new InMemoryRepo());
+  const ctx = mockChatGatewayCtx();
+  const a = candidate('a', 'codex');
+  const b = candidate('b', 'codex');
+  const custom = candidate('custom', 'custom');
+  const first = await prepareCodexSessionAffinity([a, custom, b], ctx, headers, payload);
+  expect(first.candidates).toEqual([a, custom, b]);
+  await first.succeeded(a);
+  const run = async (failed: readonly string[]) => {
+    const session = await prepareCodexSessionAffinity([custom, b, a], ctx, headers, payload);
+    const attempts: string[] = [];
+    const result = await iterateCandidates(session.candidates, 'mixed-affinity-test', ctx, 'chat', async selected => {
+      attempts.push(selected.provider.upstreamId);
+      if (failed.includes(selected.provider.upstreamId)) return { type: 'api-error' as const };
+      await session.succeeded(selected);
+      return { type: 'events' as const };
+    });
+    expect(result.type).toBe('events');
+    return attempts;
+  };
+  expect(await run([])).toEqual(['a']);
+  expect(await run(['a'])).toEqual(['a', 'custom']);
+  expect(await run([])).toEqual(['a']);
+  expect(await run(['a', 'custom'])).toEqual(['a', 'custom', 'b']);
+  expect(await run([])).toEqual(['b']);
+  const filtered = await prepareCodexSessionAffinity([custom, a], ctx, headers, payload);
+  expect(filtered.candidates).toEqual([custom, a]);
+});
+
+test('all candidates on the bound account are promoted without reordering fallbacks', async () => {
+  initRepo(new InMemoryRepo());
+  const ctx = mockChatGatewayCtx();
+  const a = candidate('a', 'codex');
+  const sibling = { ...a, model: { ...a.model, id: 'another-model' } };
+  const b = candidate('b', 'codex');
+  const custom = candidate('custom', 'custom');
+  const initial = [a, custom, sibling, b];
+  const first = await prepareCodexSessionAffinity(initial, ctx, headers, payload);
+  expect(first.candidates).toBe(initial);
+  const session = await prepareCodexSessionAffinity([custom, sibling, b, a], ctx, headers, payload);
+  expect(session.candidates).toEqual([sibling, a, custom, b]);
 });
 
 test('a late success from an older failover attempt cannot undo the winning replacement', async () => {

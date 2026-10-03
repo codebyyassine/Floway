@@ -119,7 +119,9 @@ user message. Requests without any reusable identity retain ordinary selection.
 Affinity never restores an account excluded by model availability, API-key access,
 operator configuration, or required opaque state. Existing request failover still
 applies to rate limits and account failures; a successful Codex replacement becomes
-the session's new account. Other providers keep their routing order. Each Codex
+the session's new account. An eligible bound Codex account takes priority over all
+other candidates, including other providers, which remain fallbacks in their original
+relative order. Unbound sessions retain ordinary initial selection. Each Codex
 upstream holds one account, so replacing its credentials can also change the account
 behind an existing binding. Bindings have no idle expiry and are removed when their
 API-key row is physically deleted. This improves cache locality by keeping routing

@@ -38,18 +38,26 @@ export const prepareCodexSessionAffinity = async (
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sessionId));
   const sessionKey = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   const repo = getRepo().codexSessionAffinity;
-  const binding = await repo.claim(ctx.apiKeyId, sessionKey, firstCodex.provider.upstreamId);
+  const existing = await repo.get(ctx.apiKeyId, sessionKey);
+  const binding = existing ?? (candidates[0]?.provider.kind === 'codex'
+    ? await repo.claim(ctx.apiKeyId, sessionKey, firstCodex.provider.upstreamId)
+    : null);
+  if (binding === null) {
+    return {
+      candidates,
+      succeeded: async candidate => {
+        if (candidate.provider.kind === 'codex') {
+          await repo.claim(ctx.apiKeyId, sessionKey, candidate.provider.upstreamId);
+        }
+      },
+    };
+  }
   const upstreamId = binding.upstreamId;
-  const codex = candidates.filter(candidate => candidate.provider.kind === 'codex');
-  const ordered = [
-    ...codex.filter(candidate => candidate.provider.upstreamId === upstreamId),
-    ...codex.filter(candidate => candidate.provider.upstreamId !== upstreamId),
-  ];
-  let index = 0;
+  const isBound = (candidate: ModelCandidate) => candidate.provider.kind === 'codex' && candidate.provider.upstreamId === upstreamId;
   return {
-    // Other providers keep their slots and order. Required opaque-state
-    // affinity and model/access restrictions have already narrowed this list.
-    candidates: candidates.map(candidate => candidate.provider.kind === 'codex' ? ordered[index++]! : candidate),
+    candidates: existing === null && upstreamId === firstCodex.provider.upstreamId
+      ? candidates
+      : [...candidates.filter(isBound), ...candidates.filter(candidate => !isBound(candidate))],
     succeeded: async candidate => {
       if (candidate.provider.kind === 'codex' && candidate.provider.upstreamId !== upstreamId) {
         // Failover remains available. Only a successful replacement rebinds the

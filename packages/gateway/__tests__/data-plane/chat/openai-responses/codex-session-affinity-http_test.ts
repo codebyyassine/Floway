@@ -125,6 +125,47 @@ test('real HTTP resolver and Codex provider pin a session across random alias or
   expect(fixture.calls).toEqual(['a', 'a', 'b', 'b']);
 });
 
+test('mixed-provider HTTP sessions prioritize a bound Codex account while preserving unbound selection and fallbacks', async () => {
+  const fixture = await setup();
+  const native: UpstreamRecord = {
+    ...upstream('native', 2), kind: 'custom',
+    config: { baseUrl: 'https://native.example', authStyle: 'none', endpoints: { openaiResponses: {} } },
+    state: {},
+  };
+  await saveUpstreamForTest(fixture.repo.upstreams, native);
+  expect(await seedModelsCache(fixture.repo.upstreams, native.id, await storedModelsRefreshIdentity(fixture.repo.upstreams, native.id), native.modelsCache!)).toBe(true);
+  await fixture.repo.modelAliases.insert({
+    id: 'mixed', name: 'mixed', kind: 'chat', selection: 'random', displayName: null,
+    visibleInModelsList: true, announcedMetadata: null, sortOrder: 1, createdAt: key.createdAt, updatedAt: key.createdAt,
+    targets: [{ target_model_id: 'a/gpt-5.4', rules: {} }, { target_model_id: 'native/gpt-5.4', rules: {} }],
+  });
+  let failCodex = false;
+  initFetch(async (_input, init) => {
+    const account = new Headers(init?.headers).get('chatgpt-account-id');
+    fixture.calls.push(account ?? 'native');
+    return account !== null && failCodex
+      ? Response.json({ error: { message: 'unavailable' } }, { status: 503 })
+      : success();
+  });
+  const send = async (session: string) => {
+    const response = await fixture.send(session, { model: 'mixed' });
+    expect(response.status, response.text).toBe(200);
+  };
+  await send('bound');
+  fixture.order.mockReturnValue(0);
+  await send('bound');
+  failCodex = true;
+  await send('bound');
+  failCodex = false;
+  await send('bound');
+  await send('unbound');
+  fixture.order.mockReturnValue(0.99);
+  await send('unbound');
+  fixture.order.mockReturnValue(0);
+  await send('unbound');
+  expect(fixture.calls).toEqual(['a', 'a', 'a', 'native', 'a', 'native', 'a', 'a']);
+});
+
 test('concurrent first requests share the first claimed account despite independent alias order', async () => {
   const fixture = await setup();
   let release!: () => void;

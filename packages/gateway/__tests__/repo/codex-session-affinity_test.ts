@@ -23,6 +23,18 @@ const setup = async (factory: () => Promise<Repo>) => {
 };
 
 describe.each(factories)('Codex session affinity (%s)', (_name, factory) => {
+  test('lookup does not claim an unbound session and observes current key-scoped bindings', async () => {
+    const repo = await setup(factory);
+    expect(await repo.get('key-a', 'session')).toBeNull();
+    const binding = await repo.claim('key-a', 'session', 'a');
+    expect(binding).toEqual({ upstreamId: 'a', revision: 0 });
+    expect(await repo.get('key-a', 'session')).toEqual(binding);
+    expect(await repo.get('key-b', 'session')).toBeNull();
+    expect(await repo.get('key-a', 'other-session')).toBeNull();
+    await repo.replace('key-a', 'session', binding.revision, 'b');
+    expect(await repo.get('key-a', 'session')).toEqual({ upstreamId: 'b', revision: 1 });
+  });
+
   test('first claim wins across concurrent request orders', async () => {
     const repo = await setup(factory);
     const bindings = await Promise.all([

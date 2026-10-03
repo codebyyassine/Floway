@@ -567,6 +567,7 @@ export interface CodexSessionBinding {
 }
 
 export interface CodexSessionAffinityRepo {
+  get(apiKeyId: string, sessionKey: string): Promise<CodexSessionBinding | null>;
   claim(apiKeyId: string, sessionKey: string, upstreamId: string): Promise<CodexSessionBinding>;
   replace(apiKeyId: string, sessionKey: string, expectedRevision: number, upstreamId: string): Promise<void>;
 }
