@@ -182,6 +182,8 @@ export const codexImportExchange = async (c: CtxWithJson<typeof codexImportExcha
     const dbRecord = await getRepo().upstreams.getById(record.id);
     if (!dbRecord) return c.json({ error: 'Upstream not found' }, 404);
     if (dbRecord.kind !== 'codex') return c.json({ error: 'Upstream is not a Codex upstream' }, 400);
+    assertCodexUpstreamRecord(dbRecord);
+    if (dbRecord.config.modelOverrides !== undefined) ingestion.config.modelOverrides = dbRecord.config.modelOverrides;
     const next: UpstreamRecord = {
       ...dbRecord,
       config: ingestion.config,

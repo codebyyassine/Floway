@@ -4,7 +4,7 @@ import { SqlExpirationSweepsRepo } from './expiration-sweeps-sql.ts';
 import { normalizeFlagOverrides } from './flag-overrides.ts';
 import { decodeAliasTargets, decodeAnnouncedMetadata, encodeAliasTargets, encodeAnnouncedMetadata } from './model-alias-codecs.ts';
 import { MODEL_CATALOG_REVISION, storedModelErrorMessage } from './models-cache-contract.ts';
-import { matchesModelsRefreshInputs } from './models-refresh-inputs.ts';
+import { catalogConfigChanged, matchesModelsRefreshInputs } from './models-refresh-inputs.ts';
 import { SqlOpenAIResponsesItemsRepo, SqlOpenAIResponsesSnapshotsRepo } from './openai-responses-state-sql.ts';
 import { querySqlPerformanceOverview } from './performance-overview-sql.ts';
 import { normalizeProxyFallbackList } from './proxy-fallback-list.ts';
@@ -951,7 +951,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
       state: replaceState ? record.state : null,
     });
     if (serializeStoredConfig(comparable(stored)) !== serializeStoredConfig(comparable(previous))) return null;
-    const modelsCacheUpdate = modelConfigChanged
+    const modelsCacheUpdate = catalogConfigChanged(previous, upstream)
       ? ', models_cache_json = NULL'
       : transportChanged
         ? `, models_cache_json = CASE WHEN json_extract(models_cache_json, '$.revision') = ${MODEL_CATALOG_REVISION}

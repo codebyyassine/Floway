@@ -194,10 +194,10 @@ export function UpstreamWorkspace({
   }, [modelDetailTab, modelView, tab]);
   const modelsWorkspace = <ModelsWorkspace detailSection={modelDetailTab} modelSelection={modelSelection} onModelLocatorCommit={commitModelLocator} onModelSelectionChange={setModelSelection} onOpenModel={openModel} selectedUpstreamModelId={selectedUpstreamModelId} discovered={discovered} modelsLoading={modelsLoading} modelsError={modelsError} onRefreshModels={onRefreshModels} onViewChange={changeModelView} readOnly={!editableCatalog} record={record} revealValidation={modelValidationAttempted || submitCount > 0} view={modelView} yamlDraft={modelsYamlDraft} onYamlDraftChange={onModelsYamlDraftChange} />;
   return <section className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] h-full min-h-0 min-w-0 max-[1050px]:h-auto">
-    <div className="flex items-center gap-2 border-0 border-b border-solid border-fui-divider px-5 pt-2">
+    <div className="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-fui-divider px-5 pt-2">
       {showModelDetail
         ? <>
-            <BackNavigationButton onClick={leaveModel}>{t('dashboard.upstreamEditor.models.back')}</BackNavigationButton>
+            <div className="flex-none [&_button]:!min-h-11"><BackNavigationButton onClick={leaveModel}>{t('dashboard.upstreamEditor.models.back')}</BackNavigationButton></div>
             <TabList aria-label={t('dashboard.upstreamEditor.models.sections')} selectedValue={modelDetailTab} onTabSelect={(_, data) => navigate({ tab, model: selectedUpstreamModelId, section: data.value as ModelDetailTab, view: 'list' })}>
               <Tab value="details">{t('dashboard.upstreamEditor.models.details')}</Tab>
               <Tab value="flags">{t('dashboard.upstreamEditor.models.flags')}</Tab>

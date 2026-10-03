@@ -1,8 +1,10 @@
 import { DeleteRegular } from '@fluentui/react-icons';
 import { useEffect, useId, useRef } from 'react';
 
+import { CodexModelOverridesEditor } from './codex-model-overrides';
 import type { ModelRow } from './data';
 import { publicModelId } from './data';
+import { EffortEditor } from './effort-editor';
 import { CHAT_ENDPOINT_KEYS, endpointOptionsFor, IMAGE_ENDPOINT_KEYS, shapeForKind } from './endpoints';
 import { FeatureFlagsEditor } from './feature-flags';
 import { type ModelValidationField, modelValidationIssues } from './model-validation';
@@ -12,11 +14,10 @@ import { RerankTargetEditor } from './rerank-target-editor';
 import { EditorSection } from './section';
 import type { UpstreamRecord } from '../../api/types';
 import { fluentComponents } from '../../fluent';
-import { type TFunction, useTranslation } from '../../i18n/translation';
+import { useTranslation } from '../../i18n/translation';
 import { ChoiceGroup } from '../ui/choice-group';
 import { Checkbox, Dropdown, Input, Switch } from '../ui/fluent-form-controls';
-import { CHECKBOX_LIST_CLASS, PANE_GAP_CLASS, TWO_COLUMN_FORM_CLASS } from '../ui/layout';
-import { MultiselectCombobox, valuesAsOptions } from '../ui/multiselect-combobox';
+import { CHECKBOX_LIST_CLASS, TWO_COLUMN_FORM_CLASS } from '../ui/layout';
 import { SectionHeader } from '../ui/section-header';
 import type { UpstreamChatModelConfig, UpstreamModelConfig } from '@floway-dev/provider/model-config';
 
@@ -28,8 +29,6 @@ const {
   Option,
   Text,
 } = fluentComponents;
-
-const reasoningPresets = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
 export function ModelDetail({
   onChange,
@@ -210,7 +209,7 @@ export function ModelDetail({
           <RerankTargetEditor readOnly={fieldsReadOnly} value={row.config.rerankTarget} onChange={rerankTarget => patch({ rerankTarget })} />
         </EditorSection>}
 
-        {row.config.kind !== 'image' && <EditorSection level={3} title={t('dashboard.upstreamEditor.models.capabilities')}>
+        {record.kind === 'codex' && row.config.kind === 'chat' ? <CodexModelOverridesEditor key={row.config.upstreamModelId} modelId={row.config.upstreamModelId} defaults={(row.config as UpstreamModelConfig & { codexDefaults?: UpstreamModelConfig }).codexDefaults ?? row.config} /> : row.config.kind !== 'image' && <EditorSection level={3} title={t('dashboard.upstreamEditor.models.capabilities')}>
           <div className="grid grid-cols-3 gap-4 max-[760px]:grid-cols-1">
             <NumberField label={t('dashboard.upstreamEditor.models.contextWindow')} placeholder="e.g. 1050000" readOnly={fieldsReadOnly} value={row.config.limits?.max_context_window_tokens} onChange={raw => updateLimit('max_context_window_tokens', raw)} />
             <NumberField label={t('dashboard.upstreamEditor.models.promptTokens')} placeholder="e.g. 922000" readOnly={fieldsReadOnly} value={row.config.limits?.max_prompt_tokens} onChange={raw => updateLimit('max_prompt_tokens', raw)} />
@@ -274,33 +273,6 @@ export function ModelDetail({
 
 function NumberField({ label, onChange, placeholder, readOnly, value }: { label: string; onChange: (raw: string) => void; placeholder: string; readOnly: boolean; value?: number }) {
   return <Field className="min-w-0" label={label}><Input className="!w-full" min={0} placeholder={placeholder} readOnly={readOnly} type="number" value={value === undefined ? '' : String(value)} onChange={(_, data) => onChange(data.value)} /></Field>;
-}
-
-function EffortEditor({ effort, onChange, readOnly, t }: { readOnly: boolean; effort: NonNullable<UpstreamChatModelConfig['reasoning']>['effort'] & {}; onChange: (effort: NonNullable<UpstreamChatModelConfig['reasoning']>['effort']) => void; t: TFunction }) {
-  const supported = effort.supported;
-  const setSupported = (values: readonly string[]) => onChange({
-    supported: [...values],
-    default: values.includes(effort.default) ? effort.default : values[0] ?? '',
-  });
-  return <div className={`grid grid-cols-[minmax(0,1fr)_minmax(180px,0.45fr)] ${PANE_GAP_CLASS} max-[760px]:grid-cols-1`}>
-    <Field label={t('dashboard.upstreamEditor.models.supportedEfforts')}>
-      <MultiselectCombobox
-        closedLabel={supported.join(', ')}
-        freeform
-        normalizeValue={level => level.trim()}
-        onChange={setSupported}
-        options={valuesAsOptions([...new Set([...reasoningPresets, ...supported])])}
-        placeholder={t('dashboard.upstreamEditor.models.effortPlaceholder')}
-        readOnly={readOnly}
-        value={supported}
-      />
-    </Field>
-    <Field label={t('dashboard.upstreamEditor.models.defaultEffort')}>
-      <Dropdown disabled={supported.length === 0} readOnly={readOnly} selectedOptions={[effort.default]} value={effort.default} onOptionSelect={(_, data) => data.optionValue !== undefined && onChange({ ...effort, default: data.optionValue })}>
-        {supported.map(level => <Option key={level} value={level}>{level}</Option>)}
-      </Dropdown>
-    </Field>
-  </div>;
 }
 
 const modelKindLabel = (kind: UpstreamModelConfig['kind']): string => {

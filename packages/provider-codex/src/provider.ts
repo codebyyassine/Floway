@@ -5,6 +5,7 @@ import { CODEX_DEFAULT_FLAGS } from './defaults.ts';
 import { callCodexAlphaSearch, callCodexOpenAIImagesEdits, callCodexOpenAIImagesGenerations, callCodexOpenAIResponses, callCodexOpenAIResponsesCompact, type CodexCallEffects } from './fetch.ts';
 import { CODEX_OPENAI_RESPONSES_BOUNDARY } from './interceptors/openai-responses/index.ts';
 import type { OpenAIResponsesBoundaryCtx } from './interceptors/openai-responses/types.ts';
+import { applyCodexModelOverrides } from './model-overrides.ts';
 import { codexImageProviderModel, codexPlanSupportsImages, codexRawToProviderModel, fetchCodexCatalog } from './models.ts';
 import { assertCodexUpstreamState, findCodexAccountIndex, persistCodexRefreshTokenRotation, persistCodexTerminalState } from './state.ts';
 import { runInterceptors } from '@floway-dev/interceptor';
@@ -168,7 +169,10 @@ export const createCodexProvider = (record: UpstreamRecord): Provider => {
     inboundHeaderAllowlist: INBOUND_HEADER_ALLOWLIST,
     disabledPublicModelIds: record.disabledPublicModelIds,
     modelPrefix: record.modelPrefix,
-    modelsCache: record.modelsCache,
+    modelsCache: record.modelsCache === null ? null : {
+      ...record.modelsCache,
+      models: record.modelsCache.models.map(model => applyCodexModelOverrides(model, config.modelOverrides)),
+    },
     instance,
   };
 };

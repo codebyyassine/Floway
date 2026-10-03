@@ -1738,6 +1738,46 @@ test('PATCH /api/upstreams accepts Codex display metadata edits', async () => {
   });
 });
 
+test('PATCH /api/upstreams persists sparse Codex model overrides, rejects invalid edits, and resets', async () => {
+  const { repo, adminSession, copilotUpstream } = await setupAppTest();
+  const created = await createCodexUpstreamViaExchange(adminSession);
+  const original = (await repo.upstreams.getById(created.id))!;
+  const other = await repo.upstreams.getById(copilotUpstream.id);
+  const patch = (modelOverrides: unknown) => requestApp(`/api/upstreams/${created.id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json', 'x-floway-session': adminSession },
+    body: JSON.stringify({ config: { modelOverrides } }),
+  });
+  const overrides = { 'gpt-5': { imageInput: false, imageDetailOriginal: false, limits: { max_context_window_tokens: 200000, max_output_tokens: 32000 } } };
+  const saved = await patch(overrides);
+  assertEquals(saved.status, 200);
+  assertEquals(((await saved.json()) as JsonObject).config.modelOverrides, overrides);
+  assertEquals(((await repo.upstreams.getById(created.id))!.config as JsonObject).accounts, (original.config as JsonObject).accounts);
+  const reopened = await requestApp(`/api/upstreams/${created.id}`, authed(adminSession));
+  assertEquals(((await reopened.json()) as JsonObject).config.modelOverrides, overrides);
+  for (const invalid of [
+    { 'gpt-5': { limits: { max_output_tokens: 0 } } },
+    { 'gpt-5': { limits: { max_context_window_tokens: 1.5 } } },
+    { 'gpt-5': { limits: { max_prompt_tokens: '10' } } },
+    { 'gpt-5': { imageInput: 'false' } },
+    { 'gpt-5': { unknownCapability: true } },
+  ]) {
+    const response = await patch(invalid);
+    assertEquals(response.status, 400);
+    assertEquals(((await repo.upstreams.getById(created.id))!.config as JsonObject).modelOverrides, overrides);
+  }
+  assertEquals(await repo.upstreams.getById(copilotUpstream.id), other);
+  const reimport = await requestApp('/api/upstreams/codex/import/exchange', authed(adminSession, {
+    record: envelopeFromRecord((await repo.upstreams.getById(created.id))!),
+    manual: { access_token: 'replacement-opaque' },
+  }));
+  assertEquals(reimport.status, 200);
+  assertEquals(((await reimport.json()) as JsonObject).patch.config.modelOverrides, overrides);
+  assertEquals(((await repo.upstreams.getById(created.id))!.config as JsonObject).modelOverrides, overrides);
+  assertEquals((await patch({})).status, 200);
+  assertEquals(((await repo.upstreams.getById(created.id))!.config as JsonObject).modelOverrides, {});
+});
+
 test('PATCH /api/upstreams rejects Codex account ID changes', async () => {
   const { repo, adminSession } = await setupAppTest();
   await repo.upstreams.deleteAll();

@@ -1,4 +1,4 @@
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useSourceMappedStack } from '../../src/lib/source-mapped-stack';
@@ -60,8 +60,7 @@ describe('what the error page is told about its trace', () => {
   it('replaces the trace once the maps land', async () => {
     vi.stubEnv('DEV', false);
     renderInApp(<Probe stack={RAW} />);
-    await settle();
-    expect(read()).toEqual({ status: 'settled', stack: 'Error: boom\n    at handler (/src/first.ts:1:1)' });
+    await waitFor(() => expect(read()).toEqual({ status: 'settled', stack: 'Error: boom\n    at handler (/src/first.ts:1:1)' }));
   });
 
   it('keeps the minified trace and says so when the maps cannot be read', async () => {
@@ -69,14 +68,13 @@ describe('what the error page is told about its trace', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('', { status: 503 }))));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     renderInApp(<Probe stack={RAW} />);
-    await settle();
-    expect(read()).toEqual({ status: 'failed', stack: RAW });
+    await waitFor(() => expect(read()).toEqual({ status: 'failed', stack: RAW }));
   });
 
   it('goes back to waiting when a second failure replaces the first', async () => {
     vi.stubEnv('DEV', false);
     const { rerender } = renderInApp(<Probe stack={RAW} />);
-    await settle();
+    await waitFor(() => expect(read().status).toBe('settled'));
     const second = `Error: later\n    at other (${SCRIPT}:1:1)`;
     rerender(<Probe stack={second} />);
     expect(read()).toEqual({ status: 'loading', stack: second });
@@ -102,8 +100,7 @@ describe('what the error page is told about its trace', () => {
     const { rerender } = renderInApp(<Probe stack={RAW} />);
     const second = `Error: later\n    at other (${SCRIPT}:1:1)`;
     rerender(<Probe stack={second} />);
-    await settle();
-    expect(read()).toEqual({ status: 'settled', stack: 'Error: later\n    at other (/src/first.ts:1:1)' });
+    await waitFor(() => expect(read()).toEqual({ status: 'settled', stack: 'Error: later\n    at other (/src/first.ts:1:1)' }));
 
     await act(async () => {
       releaseFirst(new Response('const a=1;\n//# sourceMappingURL=chunk.js.map'));
