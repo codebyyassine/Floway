@@ -109,6 +109,22 @@ key fields in the dashboard and model YAML.
 | Azure | Azure AI resource or Foundry project endpoint and API key | Configured models |
 | Ollama | ollama.com or a self-hosted Ollama-compatible server | Fetched live from Ollama, with optional manual overrides |
 
+Codex chat sessions reuse their initially selected account across requests, including
+Responses compaction and translated chat endpoints. Affinity is scoped to the API
+key and persisted in the database, so concurrent first requests and runtime restarts
+keep the same binding. Session identity uses Codex's per-turn body metadata, then
+session headers, then a hash of the instructions and conversation through its first
+user message. Requests without any reusable identity retain ordinary selection.
+
+Affinity never restores an account excluded by model availability, API-key access,
+operator configuration, or required opaque state. Existing request failover still
+applies to rate limits and account failures; a successful Codex replacement becomes
+the session's new account. Other providers keep their routing order. Each Codex
+upstream holds one account, so replacing its credentials can also change the account
+behind an existing binding. Bindings have no idle expiry and are removed when their
+API-key row is physically deleted. This improves cache locality by keeping routing
+stable; it does not guarantee upstream cache hits.
+
 The Codex provider repairs terminal Responses snapshots that omit items already
 closed by the stream, including native compaction output. It restores positions
 from the observed `output_index` and matches snapshot items by ID; ambiguous

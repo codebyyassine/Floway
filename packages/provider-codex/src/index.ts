@@ -12,6 +12,7 @@ export * from './auth/credential.ts';
 export * from './auth/import.ts';
 export * from './auth/oauth.ts';
 export * from './constants.ts';
+export { resolveCodexSessionId } from './fetch.ts';
 export * from './config.ts';
 export * from './state.ts';
 export * from './quota.ts';

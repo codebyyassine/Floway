@@ -1,3 +1,4 @@
+import { SqlCodexSessionAffinityRepo } from './codex-session-affinity-sql.ts';
 import { normalizeDisabledPublicModelIds } from './disabled-public-models.ts';
 import { SqlExpirationSweepsRepo } from './expiration-sweeps-sql.ts';
 import { normalizeFlagOverrides } from './flag-overrides.ts';
@@ -1684,6 +1685,7 @@ class SqlAgentSetupRepo implements AgentSetupRepository {
 }
 
 export class SqlRepo implements Repo {
+  codexSessionAffinity: Repo['codexSessionAffinity'];
   users: UsersRepo;
   sessions: SessionsRepo;
   apiKeys: ApiKeyRepo;
@@ -1703,6 +1705,7 @@ export class SqlRepo implements Repo {
   agentSetup: AgentSetupRepository;
 
   constructor(db: SqlDatabase) {
+    this.codexSessionAffinity = new SqlCodexSessionAffinityRepo(db);
     this.users = new SqlUsersRepo(db);
     this.sessions = new SqlSessionsRepo(db);
     this.apiKeys = new SqlApiKeyRepo(db);

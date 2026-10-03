@@ -5,6 +5,7 @@ import type { OpenAIResponsesAttemptResult } from './interceptors/types.ts';
 import { syntheticEventsFromCompaction } from './items/output.ts';
 import { prepareOpenAIResponsesServePlan } from './serve-prep.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
+import { prepareCodexSessionAffinity } from '../shared/codex-session-affinity.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import { collectOpenAIResponsesProtocolEventsToResult, type CanonicalOpenAIResponsesPayload, type ClientOpenAIResponsesCompaction, type OpenAIResponsesStreamEvent } from '@floway-dev/protocols/openai-responses';
@@ -21,6 +22,7 @@ export const openaiResponsesServe = {
     const { payload, ctx, headers } = args;
     const plan = await prepareOpenAIResponsesServePlan({ payload, ctx });
     if (plan.kind === 'failure') return plan.result;
+    const session = await prepareCodexSessionAffinity(plan.candidates, ctx, headers, () => plan.affinitySelection.payloadFor(plan.candidates[0]!));
     // Iterate the affinity-selected candidates: success (SSE stream opened) is the
     // final answer; per-candidate failures fall through so a transient
     // 5xx/429/network does not become the request's verdict when another
@@ -28,7 +30,7 @@ export const openaiResponsesServe = {
     // Each attempt stamps its private prepared-payload clone with the
     // candidate's canonical model id.
     const result = await iterateCandidates(
-      plan.candidates,
+      session.candidates,
       'openaiResponsesServe.generate',
       ctx,
       'chat',
@@ -42,7 +44,10 @@ export const openaiResponsesServe = {
           candidate,
           headers,
         });
-        if (result.type === 'events') ctx.affinity.select(candidate);
+        if (result.type === 'events') {
+          await session.succeeded(candidate);
+          ctx.affinity.select(candidate);
+        }
         return result;
       },
     );
@@ -61,8 +66,9 @@ export const openaiResponsesServe = {
     // re-tags the result as compact on the way out.
     const plan = await prepareOpenAIResponsesServePlan({ payload, ctx });
     if (plan.kind === 'failure') return plan.result;
+    const session = await prepareCodexSessionAffinity(plan.candidates, ctx, headers, () => plan.affinitySelection.payloadFor(plan.candidates[0]!));
     const result = await iterateCandidates(
-      plan.candidates,
+      session.candidates,
       'openaiResponsesServe.compact',
       ctx,
       'chat',
@@ -77,7 +83,10 @@ export const openaiResponsesServe = {
           candidate,
           headers,
         });
-        if (result.type === 'result') ctx.affinity.select(candidate);
+        if (result.type === 'result') {
+          await session.succeeded(candidate);
+          ctx.affinity.select(candidate);
+        }
         return result;
       },
     );

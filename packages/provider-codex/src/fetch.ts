@@ -236,7 +236,7 @@ const parseClientTurnMetadataJson = (raw: string | null): Record<string, unknown
 // handshake's value for the life of the connection. Resolve the body first and
 // keep the header as the fallback for callers that only speak the header
 // projection.
-const callerTurnMetadata = (opts: CodexBackendCallBase, clientMetadata: Record<string, unknown>): Record<string, unknown> | null =>
+const callerTurnMetadata = (opts: { headers: Headers }, clientMetadata: Record<string, unknown>): Record<string, unknown> | null =>
   parseClientTurnMetadataJson(stringField(clientMetadata, 'x-codex-turn-metadata'))
     ?? parseClientTurnMetadataJson(trimHeader(opts.headers, 'x-codex-turn-metadata'));
 
@@ -253,6 +253,16 @@ const IDENTITY_MIRRORED_CLIENT_METADATA_KEYS = new Set<string>([
   'x-codex-installation-id', 'session_id', 'thread_id', 'x-codex-window-id', 'turn_id', 'x-codex-turn-metadata',
 ]);
 
+export const resolveCodexSessionId = (body: CodexOpenAIResponsesBody, headers: Headers): string | null => {
+  const clientMetadata = clientCodexClientMetadata(body);
+  const clientTurnMetadata = callerTurnMetadata({ headers }, clientMetadata);
+  return stringField(clientMetadata, 'session_id')
+    ?? stringField(clientTurnMetadata, 'session_id')
+    ?? trimHeader(headers, 'session-id')
+    ?? trimHeader(headers, 'session_id')
+    ?? deriveSessionIdFromInput(body);
+};
+
 const buildCodexRequestIdentity = (
   opts: CodexBackendCallBase,
   body: CodexOpenAIResponsesBody,
@@ -265,12 +275,7 @@ const buildCodexRequestIdentity = (
   // a caller can split its identity across surfaces and we still emit
   // consistent values everywhere, and a long-lived socket's frozen handshake
   // headers never outrank the current turn's body.
-  const sessionId = stringField(clientMetadata, 'session_id')
-    ?? stringField(clientTurnMetadata, 'session_id')
-    ?? trimHeader(opts.headers, 'session-id')
-    ?? trimHeader(opts.headers, 'session_id')
-    ?? deriveSessionIdFromInput(body)
-    ?? uuidV7();
+  const sessionId = resolveCodexSessionId(body, opts.headers) ?? uuidV7();
   const threadId = stringField(clientMetadata, 'thread_id')
     ?? stringField(clientTurnMetadata, 'thread_id')
     ?? trimHeader(opts.headers, 'thread-id')
