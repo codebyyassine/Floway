@@ -12,6 +12,7 @@ export type {
   CodexQuotaSnapshotMap,
   CodexRateLimitResetCredit,
   CodexRateLimitResetCredits,
+  ListedUpstreamModel,
   ProviderModelsFailureResponse,
   UpstreamRecord,
 } from '@floway-dev/gateway/control-plane/upstreams/types';

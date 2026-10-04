@@ -32,7 +32,7 @@ vi.mock('../../../src/components/upstream-editor/config-sidebar', () => ({
 }));
 const defaults = {
   kind: 'chat' as const, endpoints: { openaiResponses: {} }, upstreamModelId: 'gpt-a', publicModelId: 'gpt-a',
-  limits: { max_context_window_tokens: 200_000 },
+  limits: { max_context_window_tokens: 872_000 },
   chat: { modalities: { input: ['text', 'image'] as const, output: ['text'] as const }, image_detail_original: true, reasoning: { effort: { supported: ['low', 'high'], default: 'high' } } },
 };
 const record = upstreamRecord('up_codex', { kind: 'codex', config: { accounts: [{ email: null, chatgptAccountId: null, chatgptUserId: null, planType: null }] }, state: { accounts: [] } });
@@ -40,9 +40,12 @@ const label = (key: string) => i18n.t(`dashboard.upstreamEditor.models.${key}`);
 const save = () => fireEvent.click(screen.getByRole('button', { name: i18n.t('dashboard.upstreamEditor.actions.save') }));
 const config = () => JSON.parse(screen.getByTestId('config').textContent!);
 
-function renderPage(source: UpstreamRecord = record) {
+function renderPage(source: UpstreamRecord = record, maximum = defaults.limits.max_context_window_tokens) {
+  const rawDefaults = { ...defaults, limits: { max_context_window_tokens: maximum } };
+  const override = source.kind === 'codex' ? source.config.modelOverrides?.['gpt-a'] : undefined;
+  const discovered = [{ ...rawDefaults, limits: { ...rawDefaults.limits, ...override?.limits }, codexDefaults: rawDefaults, codexOperationalContextWindow: 272_000 }];
   const router = createMemoryRouter([
-    { path: '/editor', element: <OutcomeToastProvider><UpstreamEditorPage data={{ mode: 'edit', record: source, discovered: [{ ...defaults, codexDefaults: defaults } as typeof defaults], proxies: [], runtime: { kind: 'node', runtimeLocation: 'TEST' } }} /></OutcomeToastProvider> },
+    { path: '/editor', element: <OutcomeToastProvider><UpstreamEditorPage data={{ mode: 'edit', record: source, discovered, proxies: [], runtime: { kind: 'node', runtimeLocation: 'TEST' } }} /></OutcomeToastProvider> },
     { path: '/dashboard/providers/upstreams', element: <div>Upstream list</div> },
   ], { initialEntries: ['/editor?model=gpt-a'] });
   return renderInApp(<RouterProvider router={router} />);
@@ -55,7 +58,7 @@ beforeEach(() => {
 
 test('saves only selected overrides, preserves false, and reopens with inherited defaults', async () => {
   const view = renderPage();
-  fireEvent.change(screen.getByRole('textbox', { name: label('contextWindow') }), { target: { value: '300000' } });
+  fireEvent.change(screen.getByRole('textbox', { name: label('advertisedContextWindow') }), { target: { value: '300000' } });
   fireEvent.change(screen.getByRole('textbox', { name: label('outputTokens') }), { target: { value: '32000' } });
   fireEvent.click(screen.getByRole('combobox', { name: label('imageDetailOriginal') }));
   fireEvent.click(screen.getByRole('option', { name: i18n.t('common.off') }));
@@ -68,6 +71,27 @@ test('saves only selected overrides, preserves false, and reopens with inherited
   expect((screen.getByRole('textbox', { name: label('outputTokens') }) as HTMLInputElement).value).toBe('32000');
   expect(screen.getByRole('combobox', { name: label('imageDetailOriginal') }).textContent).toContain(i18n.t('common.off'));
   expect(screen.getByText(i18n.t('dashboard.upstreamEditor.models.overrideInherited', { value: 'Not reported' }))).toBeTruthy();
+});
+
+test.each([872_000, 1_048_576])('context inheritance uses raw advertised maximum %s, not the operational default or saved override', async maximum => {
+  const source = { ...record, config: { ...record.config, modelOverrides: { 'gpt-a': { limits: { max_context_window_tokens: 999999, max_output_tokens: 32000 } }, 'gpt-b': { imageInput: false } } } } as UpstreamRecord;
+  const view = renderPage(source, maximum);
+  const context = screen.getByRole('textbox', { name: label('advertisedContextWindow') }) as HTMLInputElement;
+  expect(context.value).toBe('999999');
+  expect(context.placeholder).toBe(String(maximum));
+  expect(screen.getByText(i18n.t('dashboard.upstreamEditor.models.codexOperationalContext', { value: 272000 }))).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('dashboard.upstreamEditor.models.overrideResetField', { field: label('advertisedContextWindow') }) }));
+  expect(context.value).toBe('');
+  expect(screen.getByRole('textbox', { name: label('advertisedContextWindow'), description: i18n.t('dashboard.upstreamEditor.models.overrideInherited', { value: String(maximum) }) })).toBe(context);
+  expect(apiMocks.patch).not.toHaveBeenCalled();
+  expect(config().modelOverrides).toEqual({ 'gpt-a': { limits: { max_output_tokens: 32000 } }, 'gpt-b': { imageInput: false } });
+  save();
+  await waitFor(() => expect(apiMocks.patch).toHaveBeenCalledOnce());
+  const saved = config();
+  view.unmount();
+  renderPage({ ...record, config: saved } as UpstreamRecord, maximum);
+  expect((screen.getByRole('textbox', { name: label('advertisedContextWindow') }) as HTMLInputElement).placeholder).toBe(String(maximum));
+  expect(screen.queryByText(i18n.t('dashboard.upstreamEditor.models.overrideInherited', { value: '272000' }))).toBeNull();
 });
 
 test.each(['0', '-1', '1.5', 'abc', '100000001'])('invalid numeric draft %s cannot save or corrupt prior overrides', async raw => {
@@ -127,7 +151,7 @@ test('imported credentials with reordered account keys allow saving an override 
 
 test('field and model reset preserve other models and are only persisted on save', async () => {
   renderPage({ ...record, config: { ...record.config, modelOverrides: { 'gpt-a': { limits: { max_context_window_tokens: 300000, max_output_tokens: 32000 }, imageInput: false }, 'gpt-b': { imageInput: true } } } } as UpstreamRecord);
-  fireEvent.click(screen.getByRole('button', { name: i18n.t('dashboard.upstreamEditor.models.overrideResetField', { field: label('contextWindow') }) }));
+  fireEvent.click(screen.getByRole('button', { name: i18n.t('dashboard.upstreamEditor.models.overrideResetField', { field: label('advertisedContextWindow') }) }));
   expect(config().modelOverrides['gpt-a']).toEqual({ limits: { max_output_tokens: 32000 }, imageInput: false });
   expect(apiMocks.patch).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: label('overrideResetModel') }));

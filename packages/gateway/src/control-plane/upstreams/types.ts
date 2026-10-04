@@ -222,6 +222,7 @@ export type UpstreamRecord =
 
 export interface ListedUpstreamModel extends UpstreamModelConfig {
   codexDefaults?: UpstreamModelConfig;
+  codexOperationalContextWindow?: number;
   upstreamModelId: string;
   publicModelId: string;
   endpoints: ModelEndpoints;

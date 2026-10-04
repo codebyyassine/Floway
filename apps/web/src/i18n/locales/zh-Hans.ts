@@ -737,6 +737,8 @@ const zhHansCN = {
           endpoints: '支持的 API',
           capabilities: '能力与限制',
           overrideHint: '覆盖仅更改 Floway 的本地元数据，无法启用提供商不支持的功能或提高提供商强制的限制。未设置的字段会继承目录更新。重置更改将在保存后生效。',
+          advertisedContextWindow: '对外公布的上下文窗口',
+          codexOperationalContext: 'Codex 上游运行默认值：{{value, number}} 个令牌。API 客户端接收下方对外公布的上下文窗口。',
           overrideInherited: '继承：{{value}}',
           overrideUnspecified: '未报告',
           overrideActive: '已覆盖',
