@@ -76,18 +76,20 @@ describe('codex quota entries', () => {
       },
     }, NOW);
     expect(entries[0].windows).toEqual([
-      { key: 'primary', percent: 0, resetAt: PAST, windowMinutes: null },
+      { key: 'primary', percent: 0, resetAt: null, windowMinutes: null },
       { key: 'secondary', percent: 90, resetAt: FUTURE, windowMinutes: null },
     ]);
   });
 
   it('treats a reset instant equal to now as passed', () => {
     const at = new Date(NOW).toISOString();
-    expect(quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100, primary_reset_after_at: at } }, NOW)[0].windows[0].percent).toBe(0);
+    expect(quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100, primary_reset_after_at: at } }, NOW)[0].windows[0])
+      .toEqual({ key: 'primary', percent: 0, resetAt: null, windowMinutes: null });
   });
 
   it('keeps the cached reading for a window the snapshot never dated', () => {
-    expect(quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100 } }, NOW)[0].windows[0].percent).toBe(100);
+    expect(quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100 } }, NOW)[0].windows[0])
+      .toEqual({ key: 'primary', percent: 100, resetAt: null, windowMinutes: null });
   });
 
   it('keeps the cached reading when the reset instant is unusable', () => {

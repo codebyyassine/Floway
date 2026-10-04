@@ -83,12 +83,13 @@ export const findCredential = (record: CodexRecord): CredentialLookup => {
 export const codexRenewable = (credential: CodexAccountCredentialState): boolean =>
   credential.refresh_token_set ?? (typeof credential.refresh_token === 'string' && credential.refresh_token.length > 0);
 
-// A reset instant that has passed means the period rolled over, so the window
-// reads empty; a window the snapshot never dated keeps its reading.
-const readPercent = (percent: number, resetAt: string | undefined, now: number): number => {
-  if (resetAt === undefined) return percent;
+// A reset instant at or before now means the period rolled over: the window
+// reads empty and drops the instant it has passed, while a window the snapshot
+// never dated keeps its reading and its null reset.
+const rolledOver = (resetAt: string | undefined, now: number): boolean => {
+  if (resetAt === undefined) return false;
   const instant = Date.parse(resetAt);
-  return Number.isFinite(instant) && instant <= now ? 0 : percent;
+  return Number.isFinite(instant) && instant <= now;
 };
 
 const window = (
@@ -97,9 +98,16 @@ const window = (
   resetAt: string | undefined,
   windowMinutes: number | undefined,
   now: number,
-): QuotaWindow | null => typeof percent === 'number' && Number.isFinite(percent)
-  ? { key, percent: readPercent(percent, resetAt, now), resetAt: resetAt ?? null, windowMinutes: windowMinutes ?? null }
-  : null;
+): QuotaWindow | null => {
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
+  const elapsed = rolledOver(resetAt, now);
+  return {
+    key,
+    percent: elapsed ? 0 : percent,
+    resetAt: elapsed ? null : resetAt ?? null,
+    windowMinutes: windowMinutes ?? null,
+  };
+};
 
 const stillRateLimited = (until: string | undefined, now: number): string | null =>
   typeof until === 'string' && new Date(until).getTime() > now ? until : null;

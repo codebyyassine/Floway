@@ -20,21 +20,22 @@ const record = upstreamRecord('', {
   state: { accounts: [{ chatgptAccountId: 'fixture', state: 'active', state_updated_at: observed }] },
 }) as CodexRecord;
 
-// `after` is what both surfaces read once `until` passes, in window order;
-// list and card share the projection, so they cannot disagree.
+// `after` is what both surfaces read once `until` passes, in window order, and
+// `resets` is how many reset instants are still advertised then; list and card
+// share the projection, so they cannot disagree.
 const cases = [
-  { name: 'primary only', primary: 100, secondary: 35, until: primaryReset, after: [0, 35] },
-  { name: 'secondary only', primary: 35, secondary: 100, until: secondaryReset, after: [0, 0] },
-  { name: 'both known', primary: 100, secondary: 100, until: secondaryReset, after: [0, 0] },
-  { name: 'unknown secondary percentage', primary: 100, secondary: undefined, until: primaryReset, after: [0] },
-  { name: 'exhausted secondary without reset', primary: 100, secondary: 100, secondaryReset: undefined, until: primaryReset, after: [0, 100] },
-  { name: 'unknown primary percentage', primary: undefined, secondary: 100, until: secondaryReset, after: [0] },
+  { name: 'primary only', primary: 100, secondary: 35, until: primaryReset, after: [0, 35], resets: 1 },
+  { name: 'secondary only', primary: 35, secondary: 100, until: secondaryReset, after: [0, 0], resets: 0 },
+  { name: 'both known', primary: 100, secondary: 100, until: secondaryReset, after: [0, 0], resets: 0 },
+  { name: 'unknown secondary percentage', primary: 100, secondary: undefined, until: primaryReset, after: [0], resets: 0 },
+  { name: 'exhausted secondary without reset', primary: 100, secondary: 100, secondaryReset: undefined, until: primaryReset, after: [0, 100], resets: 0 },
+  { name: 'unknown primary percentage', primary: undefined, secondary: 100, until: secondaryReset, after: [0], resets: 0 },
 ];
 
 afterEach(() => vi.useRealTimers());
 
 describe('Codex projected quota on list and card', () => {
-  it.each(cases)('expires the known timer without new traffic: $name', async ({ primary, secondary, until, after, ...scenario }) => {
+  it.each(cases)('expires the known timer without new traffic: $name', async ({ primary, secondary, until, after, resets, ...scenario }) => {
     vi.useFakeTimers();
     vi.setSystemTime('2026-07-28T12:00:00.000Z');
     const quota = {
@@ -80,6 +81,8 @@ describe('Codex projected quota on list and card', () => {
     expect(card.queryByText('100%') !== null).toBe(after.includes(100));
     expect(card.queryByText(/^Heavy usage/) !== null).toBe(stillHeavy);
     expect(card.queryByText('Active') !== null).toBe(!stillHeavy);
+    // A rolled-over window no longer advertises the reset instant it passed.
+    expect(card.queryAllByText(/^Resets at/)).toHaveLength(resets);
     expect(projected.codex_quota.premium).toEqual(quota);
 
     // A fresh reading repopulates the window with a real percent.
