@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    maxWorkers: 2,
     environment: 'node',
     include: ['__tests__/**/*_test.ts'],
     // `setupAppTest` builds the full Hono app + memory D1 + admin session per
