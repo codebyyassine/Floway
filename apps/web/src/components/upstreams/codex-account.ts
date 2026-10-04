@@ -83,14 +83,31 @@ export const findCredential = (record: CodexRecord): CredentialLookup => {
 export const codexRenewable = (credential: CodexAccountCredentialState): boolean =>
   credential.refresh_token_set ?? (typeof credential.refresh_token === 'string' && credential.refresh_token.length > 0);
 
+// A reset instant at or before now means the period rolled over: the window
+// reads empty and drops the instant it has passed, while a window the snapshot
+// never dated keeps its reading and its null reset.
+const rolledOver = (resetAt: string | undefined, now: number): boolean => {
+  if (resetAt === undefined) return false;
+  const instant = Date.parse(resetAt);
+  return Number.isFinite(instant) && instant <= now;
+};
+
 const window = (
   key: QuotaWindow['key'],
   percent: number | undefined,
   resetAt: string | undefined,
   windowMinutes: number | undefined,
-): QuotaWindow | null => typeof percent === 'number' && Number.isFinite(percent)
-  ? { key, percent, resetAt: resetAt ?? null, windowMinutes: windowMinutes ?? null }
-  : null;
+  now: number,
+): QuotaWindow | null => {
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
+  const elapsed = rolledOver(resetAt, now);
+  return {
+    key,
+    percent: elapsed ? 0 : percent,
+    resetAt: elapsed ? null : resetAt ?? null,
+    windowMinutes: windowMinutes ?? null,
+  };
+};
 
 const stillRateLimited = (until: string | undefined, now: number): string | null =>
   typeof until === 'string' && new Date(until).getTime() > now ? until : null;
@@ -104,8 +121,8 @@ export const quotaEntries = (quota: CodexQuotaSnapshotMap | null | undefined, no
       observedAt: snapshot.observed_at,
       rateLimitedUntil: stillRateLimited(snapshot.ratelimited_until, now),
       windows: [
-        window('primary', snapshot.primary_used_percent, snapshot.primary_reset_after_at, snapshot.primary_window_minutes),
-        window('secondary', snapshot.secondary_used_percent, snapshot.secondary_reset_after_at, snapshot.secondary_window_minutes),
+        window('primary', snapshot.primary_used_percent, snapshot.primary_reset_after_at, snapshot.primary_window_minutes, now),
+        window('secondary', snapshot.secondary_used_percent, snapshot.secondary_reset_after_at, snapshot.secondary_window_minutes, now),
       ].filter((entry): entry is QuotaWindow => entry !== null),
     }));
 

@@ -64,6 +64,38 @@ describe('codex quota entries', () => {
   it('drops a window the snapshot reports no percentage for', () => {
     expect(quotaEntries({ daily: { observed_at: PAST, primary_reset_after_at: FUTURE } }, NOW)[0].windows).toEqual([]);
   });
+
+  it('reads a window whose reset instant has passed as fresh zero usage', () => {
+    const entries = quotaEntries({
+      daily: {
+        observed_at: PAST,
+        primary_used_percent: 100,
+        primary_reset_after_at: PAST,
+        secondary_used_percent: 90,
+        secondary_reset_after_at: FUTURE,
+      },
+    }, NOW);
+    expect(entries[0].windows).toEqual([
+      { key: 'primary', percent: 0, resetAt: null, windowMinutes: null },
+      { key: 'secondary', percent: 90, resetAt: FUTURE, windowMinutes: null },
+    ]);
+  });
+
+  it('treats a reset instant equal to now as passed', () => {
+    const at = new Date(NOW).toISOString();
+    expect(quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100, primary_reset_after_at: at } }, NOW)[0].windows[0])
+      .toEqual({ key: 'primary', percent: 0, resetAt: null, windowMinutes: null });
+  });
+
+  it('keeps the cached reading for a window the snapshot never dated', () => {
+    expect(quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100 } }, NOW)[0].windows[0])
+      .toEqual({ key: 'primary', percent: 100, resetAt: null, windowMinutes: null });
+  });
+
+  it('keeps the cached reading when the reset instant is unusable', () => {
+    const entries = quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100, primary_reset_after_at: 'not-a-date' } }, NOW);
+    expect(entries[0].windows[0].percent).toBe(100);
+  });
 });
 
 describe('codex credits', () => {
@@ -115,6 +147,11 @@ describe('codex account status', () => {
   it('warns on heavy usage across any window', () => {
     const entries = quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 12, secondary_used_percent: 84 } }, NOW);
     expect(accountStatus(activeLookup, entries)).toEqual({ tone: 'warning', reason: 'heavy', percent: 84 });
+  });
+
+  it('stops warning on heavy usage whose own reset has passed', () => {
+    const entries = quotaEntries({ daily: { observed_at: PAST, primary_used_percent: 100, primary_reset_after_at: PAST } }, NOW);
+    expect(accountStatus(activeLookup, entries)).toEqual({ tone: 'success', reason: 'active' });
   });
 
   it('stays active with no snapshots at all', () => {

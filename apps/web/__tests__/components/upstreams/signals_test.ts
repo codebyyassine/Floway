@@ -95,6 +95,27 @@ describe('upstream readout by provider', () => {
     expect(rowFor('2026-07-28T12:00:01.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 1m');
   });
 
+  it('drops a Codex window reset once its instant has passed', () => {
+    const record = {
+      kind: 'codex',
+      config: { accounts: [{ chatgptAccountId: 'acct_1', planType: 'pro' }] },
+      state: { accounts: [] },
+      codex_quota: {
+        pro: {
+          observed_at: OBSERVED,
+          primary_used_percent: 100, primary_window_minutes: 300,
+          primary_reset_after_at: '2026-07-28T11:30:00.000Z',
+          secondary_used_percent: 40, secondary_window_minutes: 10_080,
+          secondary_reset_after_at: '2026-08-05T00:00:00.000Z',
+        },
+      },
+    };
+    expect(rowOf(record)).toBe('ChatGPT Pro | 0% 5h | 40% 7d');
+    const details = readoutOf(record).signals.map(signal => signal.detail);
+    expect(details[0]).not.toContain('Resets ');
+    expect(details[1]).toContain('Resets ');
+  });
+
   it('lets an elapsed Codex rate limit go rather than holding it on the row', () => {
     expect(rowOf({
       kind: 'codex',

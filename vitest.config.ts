@@ -8,6 +8,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     env: { TZ: 'UTC' },
+    // Vitest otherwise starts `availableParallelism() - 1` workers, so a
+    // 16-core machine runs 15 happy-dom workers at once and one full workspace
+    // run can exhaust RAM and swap. Two keeps every run inside a machine's
+    // budget; each project config repeats the cap so a standalone package run
+    // is bounded too.
+    maxWorkers: 2,
     projects: ['packages/*/vitest.config.ts', 'apps/*/vitest.config.ts', 'tools/vitest.config.ts'],
   },
 });
