@@ -209,7 +209,7 @@ export function ModelDetail({
           <RerankTargetEditor readOnly={fieldsReadOnly} value={row.config.rerankTarget} onChange={rerankTarget => patch({ rerankTarget })} />
         </EditorSection>}
 
-        {record.kind === 'codex' && row.config.kind === 'chat' ? <CodexModelOverridesEditor key={row.config.upstreamModelId} modelId={row.config.upstreamModelId} defaults={(row.config as UpstreamModelConfig & { codexDefaults?: UpstreamModelConfig }).codexDefaults ?? row.config} /> : row.config.kind !== 'image' && <EditorSection level={3} title={t('dashboard.upstreamEditor.models.capabilities')}>
+        {record.kind === 'codex' && row.config.kind === 'chat' ? <CodexModelOverridesEditor key={row.config.upstreamModelId} modelId={row.config.upstreamModelId} defaults={row.config.codexDefaults ?? row.config} operationalContextWindow={row.config.codexOperationalContextWindow} /> : row.config.kind !== 'image' && <EditorSection level={3} title={t('dashboard.upstreamEditor.models.capabilities')}>
           <div className="grid grid-cols-3 gap-4 max-[760px]:grid-cols-1">
             <NumberField label={t('dashboard.upstreamEditor.models.contextWindow')} placeholder="e.g. 1050000" readOnly={fieldsReadOnly} value={row.config.limits?.max_context_window_tokens} onChange={raw => updateLimit('max_context_window_tokens', raw)} />
             <NumberField label={t('dashboard.upstreamEditor.models.promptTokens')} placeholder="e.g. 922000" readOnly={fieldsReadOnly} value={row.config.limits?.max_prompt_tokens} onChange={raw => updateLimit('max_prompt_tokens', raw)} />

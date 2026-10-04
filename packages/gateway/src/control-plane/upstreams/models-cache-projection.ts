@@ -29,10 +29,8 @@ export const cachedModelsForDashboard = (record: StoredUpstreamRecord): Upstream
       if (model.kind !== 'chat') return effective;
       return {
         ...effective,
-        codexDefaults: {
-          ...reshapeModelForDashboard(model),
-          limits: { ...model.limits, max_context_window_tokens: codexModelContextWindow(model).context_window },
-        },
+        codexDefaults: reshapeModelForDashboard(model),
+        codexOperationalContextWindow: codexModelContextWindow(model).context_window,
       };
     });
   }

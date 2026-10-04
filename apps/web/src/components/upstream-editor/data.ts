@@ -3,6 +3,7 @@ import type { InferRequestType } from 'hono/client';
 import { PATH_OVERRIDE_PATHS } from './endpoints';
 import { api, callApi } from '../../api/client';
 import type {
+  ListedUpstreamModel,
   ProxyRecord,
   ProviderModelsFailureResponse,
   UpstreamRecord,
@@ -56,7 +57,7 @@ export const hasUnsavedDiscoveryInputs = (
 export interface ModelRow {
   key: string;
   source: 'auto' | 'manual';
-  config: UpstreamModelConfig;
+  config: UpstreamModelConfig & Pick<ListedUpstreamModel, 'codexDefaults' | 'codexOperationalContextWindow'>;
   manualIndex: number | null;
   hasAuto: boolean;
 }

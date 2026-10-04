@@ -769,6 +769,8 @@ const en = {
           endpoints: 'Supported endpoints',
           capabilities: 'Capabilities and limits',
           overrideHint: 'Overrides change Floway’s local metadata only. They cannot enable unsupported provider features or raise provider-enforced limits. Unset fields inherit catalog updates. Reset changes are applied when you save.',
+          advertisedContextWindow: 'Advertised context window',
+          codexOperationalContext: 'Codex upstream operational default: {{value, number}} tokens. API clients receive the advertised context window below.',
           overrideInherited: 'Inherited: {{value}}',
           overrideUnspecified: 'Not reported',
           overrideActive: 'Overridden',

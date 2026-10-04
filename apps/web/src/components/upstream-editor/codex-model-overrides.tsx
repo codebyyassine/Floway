@@ -14,7 +14,7 @@ import { CODEX_OVERRIDE_MAX_TOKENS, type CodexModelOverride } from '@floway-dev/
 const { Button, Field, Option, Text } = fluentComponents;
 type CodexConfig = Extract<UpstreamRecord, { kind: 'codex' }>['config'];
 
-export function CodexModelOverridesEditor({ defaults, modelId }: { defaults: UpstreamModelConfig; modelId: string }) {
+export function CodexModelOverridesEditor({ defaults, modelId, operationalContextWindow }: { defaults: UpstreamModelConfig; modelId: string; operationalContextWindow?: number }) {
   const { t } = useTranslation();
   const { control, setValue } = useFormContext<UpstreamEditorValues>();
   const config = useWatch({ control, name: 'config' }) as CodexConfig;
@@ -34,7 +34,7 @@ export function CodexModelOverridesEditor({ defaults, modelId }: { defaults: Ups
   const unknown = t('dashboard.upstreamEditor.models.overrideUnspecified');
   const booleanLabel = (value: boolean) => t(value ? 'common.on' : 'common.off');
   const numericFields = [
-    ['max_context_window_tokens', 'contextWindow'],
+    ['max_context_window_tokens', 'advertisedContextWindow'],
     ['max_prompt_tokens', 'promptTokens'],
     ['max_output_tokens', 'outputTokens'],
   ] as const;
@@ -46,6 +46,7 @@ export function CodexModelOverridesEditor({ defaults, modelId }: { defaults: Ups
   const effort = override.reasoningEffort ?? inheritedEffort;
   const invalidEffort = override.reasoningEffort !== undefined && (override.reasoningEffort.supported.length === 0 || !override.reasoningEffort.supported.includes(override.reasoningEffort.default));
   return <EditorSection error={invalidEffort ? t('dashboard.upstreamEditor.models.overrideEffortInvalid') : undefined} level={3} title={t('dashboard.upstreamEditor.models.capabilities')} description={t('dashboard.upstreamEditor.models.overrideHint')}>
+    {operationalContextWindow !== undefined && <Text className="text-fui-fg2" size={200}>{t('dashboard.upstreamEditor.models.codexOperationalContext', { value: operationalContextWindow })}</Text>}
     <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-4">
       {numericFields.map(([key, label]) => <OverrideNumber
         key={key}
