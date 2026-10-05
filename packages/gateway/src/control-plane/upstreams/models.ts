@@ -19,8 +19,8 @@ const malformedConfigResponse = (error: unknown): boolean =>
 export const previewModels = async (c: CtxWithJson<typeof previewModelsBody>) => {
   const { record } = c.req.valid('json');
   const kind = record.kind;
-  if (kind !== 'custom' && kind !== 'ollama') {
-    return c.json({ error: { message: `Draft model discovery requires custom or ollama: ${kind}`, type: 'invalid_request_error' } }, 400);
+  if (kind !== 'custom' && kind !== 'ollama' && kind !== 'opencode-go') {
+    return c.json({ error: { message: `Draft model discovery requires custom, ollama, or opencode-go: ${kind}`, type: 'invalid_request_error' } }, 400);
   }
   const synthRecord: UpstreamRecord = {
     id: record.id || 'draft',

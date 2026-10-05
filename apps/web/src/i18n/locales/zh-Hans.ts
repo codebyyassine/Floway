@@ -62,6 +62,7 @@ const zhHansCN = {
       codex: 'Codex',
       'claude-code': 'Claude Code',
       ollama: 'Ollama',
+      'opencode-go': 'OpenCode Go',
     },
     dashboard: {
       title: 'Dashboard',
@@ -447,6 +448,7 @@ const zhHansCN = {
           codex: 'ChatGPT Plus、Pro 或 Team',
           'claude-code': 'Claude Pro、Max 或 Team 订阅',
           ollama: 'ollama.com 或自托管服务',
+          'opencode-go': 'OpenCode Go 订阅',
         },
         models: {
           count_other: '{{count, number}} 个模型',
@@ -464,6 +466,7 @@ const zhHansCN = {
         },
         summary: {
           ollama: 'Ollama 端点',
+          'opencode-go': 'OpenCode Go 端点',
           copilot: 'GitHub Copilot 账号',
           noAccount: '尚未连接账号',
         },

@@ -153,7 +153,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
     ? { ...formState.dirtyFields, config: false }
     : formState.dirtyFields;
   const discoveryInputsDirty = hasUnsavedDiscoveryInputs(discoveryDirtyFields)
-    || (record.kind === 'ollama' && manualModelsDirty);
+    || ((record.kind === 'ollama' || record.kind === 'opencode-go') && manualModelsDirty);
   const oauth = record.kind === 'copilot' || record.kind === 'codex' || record.kind === 'claude-code';
   const fetchDialog = useDialogInvocation<void>();
   // Save resets the form and record in one commit. The immediately following
@@ -234,7 +234,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
       setModelsYamlDraft(null);
     }
     const invalidatesPendingFetch = hasUnsavedDiscoveryInputs(formState.dirtyFields) || manualModelsDirty || yamlModelsChanged;
-    const invalidatesDiscovered = discoveryInputsDirty || (record.kind === 'ollama' && yamlModelsChanged);
+    const invalidatesDiscovered = discoveryInputsDirty || ((record.kind === 'ollama' || record.kind === 'opencode-go') && yamlModelsChanged);
     let savedRecord: UpstreamRecord | null = null;
     await handleSubmit(async values => {
       setSaving(true); setSaveError(null);

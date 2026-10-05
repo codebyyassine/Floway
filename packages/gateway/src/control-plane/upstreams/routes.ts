@@ -29,6 +29,7 @@ import { type CodexQuotaSnapshotMap, type CodexUpstreamConfig, assertCodexUpstre
 import { parseCopilotUpstreamConfig, readCopilotUpstreamState } from '@floway-dev/provider-copilot';
 import { assertCustomUpstreamRecord } from '@floway-dev/provider-custom';
 import { assertOllamaUpstreamRecord } from '@floway-dev/provider-ollama';
+import { assertOpencodeGoUpstreamRecord } from '@floway-dev/provider-opencode-go';
 
 type CodexQuotaProjection = { codex_quota?: CodexQuotaSnapshotMap | null };
 
@@ -92,6 +93,7 @@ const normalizeConfig = (record: UpstreamRecord): ValidationResult<unknown> => {
     if (record.kind === 'custom') return { ok: true, value: assertCustomUpstreamRecord(record).config };
     if (record.kind === 'azure') return { ok: true, value: assertAzureUpstreamRecord(record).config };
     if (record.kind === 'ollama') return { ok: true, value: assertOllamaUpstreamRecord(record).config };
+    if (record.kind === 'opencode-go') return { ok: true, value: assertOpencodeGoUpstreamRecord(record).config };
     if (record.kind === 'codex') {
       assertCodexUpstreamRecord(record);
       return { ok: true, value: record.config };

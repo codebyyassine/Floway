@@ -82,6 +82,7 @@ export const providerDefaultName: Record<UpstreamProviderKind, string> = {
   codex: 'ChatGPT Codex',
   'claude-code': 'Claude Code',
   ollama: 'Ollama',
+  'opencode-go': 'OpenCode Go',
 };
 
 export const loadEditorAux = async (): Promise<EditorAuxData> => {
@@ -109,6 +110,8 @@ export const canFetchModelCatalog = (record: UpstreamRecord, config: UpstreamEdi
   }
   case 'ollama':
     return Boolean((config as Extract<UpstreamRecord, { kind: 'ollama' }>['config']).baseUrl);
+  case 'opencode-go':
+    return Boolean((config as Extract<UpstreamRecord, { kind: 'opencode-go' }>['config']).baseUrl);
   case 'azure':
     return false;
   default:
@@ -119,8 +122,8 @@ export const canFetchModelCatalog = (record: UpstreamRecord, config: UpstreamEdi
 // Manual entries exist only for the kinds whose stored config carries a model
 // list. For the rest the catalog is the provider's, and the editor can only
 // enable and disable what it lists.
-export const manualModelsSupported = (record: UpstreamRecord): record is Extract<UpstreamRecord, { kind: 'custom' | 'azure' | 'ollama' }> =>
-  record.kind === 'custom' || record.kind === 'azure' || record.kind === 'ollama';
+export const manualModelsSupported = (record: UpstreamRecord): record is Extract<UpstreamRecord, { kind: 'custom' | 'azure' | 'ollama' | 'opencode-go' }> =>
+  record.kind === 'custom' || record.kind === 'azure' || record.kind === 'ollama' || record.kind === 'opencode-go';
 
 export interface ModelCatalogFetch {
   /** Null when the request produced no new catalog. */
@@ -201,7 +204,7 @@ export const valuesFromRecord = (record: UpstreamRecord): UpstreamEditorValues =
       }
     : record.kind === 'azure'
       ? { ...structuredClone(record.config), apiKey: '' }
-      : record.kind === 'ollama'
+      : record.kind === 'ollama' || record.kind === 'opencode-go'
         ? { ...structuredClone(record.config), apiKey: '' }
         : structuredClone(record.config);
   const manualModels = manualModelsSupported(record) ? structuredClone(record.config.models) : [];

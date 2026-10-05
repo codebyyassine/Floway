@@ -240,6 +240,8 @@ const upstreamSignals = (record: UpstreamRecord, t: TFunction, locale: string, n
   case 'codex': return codexSignals(record, t, locale, now);
   case 'claude-code': return claudeCodeSignals(record, t, locale, now);
   case 'ollama': return ollamaSignals(record, t, locale);
+  // No usage windows to report: the row carries the endpoint alone.
+  case 'opencode-go': return [];
   }
 };
 
@@ -251,6 +253,7 @@ const upstreamPlan = (record: UpstreamRecord): string | null => {
   switch (record.kind) {
   case 'custom':
   case 'azure':
+  case 'opencode-go':
     return null;
   case 'copilot': return copilotPlanLabel(record);
   case 'ollama': return ollamaPlanLabel(record);

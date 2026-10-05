@@ -11,6 +11,7 @@ import { assertCodexUpstreamRecord, assertCodexUpstreamState } from '@floway-dev
 import { assertCopilotUpstreamRecord, assertCopilotUpstreamState } from '@floway-dev/provider-copilot';
 import { assertCustomUpstreamRecord } from '@floway-dev/provider-custom';
 import { assertOllamaUpstreamRecord, readOllamaUpstreamState } from '@floway-dev/provider-ollama';
+import { assertOpencodeGoUpstreamRecord } from '@floway-dev/provider-opencode-go';
 
 export type { FullSerializedUpstreamRecord } from './types.ts';
 
@@ -144,6 +145,16 @@ export const upstreamRecordToJson = (upstream: UpstreamRecord): RedactedSerializ
       state: upstream.state === null ? null : readOllamaUpstreamState(upstream.state),
     };
   }
+  case 'opencode-go': {
+    const { config } = assertOpencodeGoUpstreamRecord(upstream);
+    return {
+      ...base,
+      kind: 'opencode-go',
+      // The bearer stays server-only; only its presence crosses.
+      config: { baseUrl: config.baseUrl, models: clone(config.models), apiKeySet: hasSecret(config.apiKey) },
+      state: stateless(upstream),
+    };
+  }
   }
 };
 
@@ -176,6 +187,10 @@ export const upstreamRecordToFullJson = (upstream: UpstreamRecord): FullSerializ
   case 'ollama': {
     const record = assertOllamaUpstreamRecord(upstream);
     return { ...base, kind: 'ollama', config: clone(record.config), state: upstream.state === null ? null : readOllamaUpstreamState(upstream.state) };
+  }
+  case 'opencode-go': {
+    const record = assertOpencodeGoUpstreamRecord(upstream);
+    return { ...base, kind: 'opencode-go', config: clone(record.config), state: stateless(upstream) };
   }
   }
 };
@@ -213,5 +228,7 @@ export const blueprintUpstreamRecord = (kind: UpstreamProviderKind): BlueprintSe
     return { ...base, kind, config: { accounts: [] }, state: { accounts: [] } };
   case 'ollama':
     return { ...base, kind, config: { baseUrl: '', apiKey: '', cloudUsage: false, models: [] }, state: null };
+  case 'opencode-go':
+    return { ...base, kind, config: { baseUrl: '', apiKey: '', models: [] }, state: null };
   }
 };

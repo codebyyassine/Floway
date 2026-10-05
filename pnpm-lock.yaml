@@ -360,6 +360,9 @@ importers:
       '@floway-dev/provider-ollama':
         specifier: workspace:*
         version: link:../provider-ollama
+      '@floway-dev/provider-opencode-go':
+        specifier: workspace:*
+        version: link:../provider-opencode-go
       '@floway-dev/proxy':
         specifier: workspace:*
         version: link:../proxy
@@ -593,6 +596,19 @@ importers:
         specifier: workspace:*
         version: link:../test-utils
 
+  packages/provider-opencode-go:
+    dependencies:
+      '@floway-dev/protocols':
+        specifier: workspace:*
+        version: link:../protocols
+      '@floway-dev/provider':
+        specifier: workspace:*
+        version: link:../provider
+    devDependencies:
+      '@floway-dev/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+
   packages/proxy:
     dependencies:
       '@floway-dev/http':
@@ -656,6 +672,9 @@ importers:
       '@floway-dev/provider-ollama':
         specifier: workspace:*
         version: link:../packages/provider-ollama
+      '@floway-dev/provider-opencode-go':
+        specifier: workspace:*
+        version: link:../packages/provider-opencode-go
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
@@ -3567,6 +3586,7 @@ packages:
   eslint@9.39.1:
     resolution: {integrity: sha512-BhHmn2yNOFA9H9JmmIVKJmd288g9hrVRDkdoIgRCRuSySRUHH7r/DI6aAXW9T1WwUuY3DFgrcaqB+deURBLR5g==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'

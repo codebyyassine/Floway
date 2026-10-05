@@ -18,6 +18,7 @@
     "@floway-dev/provider-codex": "workspace:*",
     "@floway-dev/provider-copilot": "workspace:*",
     "@floway-dev/provider-ollama": "workspace:*",
+    "@floway-dev/provider-opencode-go": "workspace:*",
     "jsonc-parser": "^3.3.1",
     "tsx": "^4"
   },

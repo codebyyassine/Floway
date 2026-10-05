@@ -64,6 +64,7 @@ const en = {
       codex: 'Codex',
       'claude-code': 'Claude Code',
       ollama: 'Ollama',
+      'opencode-go': 'OpenCode Go',
     },
     dashboard: {
       title: 'Dashboard',
@@ -471,6 +472,7 @@ const en = {
           codex: 'ChatGPT Plus, Pro, or Team',
           'claude-code': 'Claude Pro, Max, or Team subscription',
           ollama: 'ollama.com or self-hosted',
+          'opencode-go': 'OpenCode Go subscription',
         },
         models: {
           count_one: '{{count, number}} model',
@@ -490,6 +492,7 @@ const en = {
         },
         summary: {
           ollama: 'Ollama endpoint',
+          'opencode-go': 'OpenCode Go endpoint',
           copilot: 'GitHub Copilot account',
           noAccount: 'No account connected',
         },
