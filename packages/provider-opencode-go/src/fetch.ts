@@ -10,6 +10,21 @@
 import type { OpencodeGoUpstreamConfig } from './config.ts';
 import { type FetchInit, type UpstreamFetchOptions, joinBaseAndPath } from '@floway-dev/provider';
 
+// OpenCode Go asks a client to identify itself rather than let a generic SDK or
+// HTTP-library name reach it, because the traffic it meters is shaped like a
+// coding agent's and it routes and caches on that expectation. Naming Floway is
+// both the honest identity and one the vendor's guidance accepts.
+// https://opencode.ai/docs/go/#where-can-i-use-it
+export const OPENCODE_GO_USER_AGENT = 'floway';
+
+// The same guidance asks each client to send a stable conversation identifier in
+// `x-opencode-session`. Go recognises the native header of its validated clients
+// (Claude Code, Codex, OpenCode), so this upstream admits that one name and
+// forwards whatever the client sent -- see `inboundHeaderAllowlist` in
+// provider.ts, which is what stops the gateway stripping it before dispatch.
+// https://opencode.ai/docs/go/#where-can-i-use-it
+export const OPENCODE_GO_SESSION_HEADER = 'x-opencode-session';
+
 const opencodeGoFetchInternal = async (
   config: OpencodeGoUpstreamConfig,
   path: string,
@@ -18,6 +33,10 @@ const opencodeGoFetchInternal = async (
 ): Promise<Response> => {
   const headers = new Headers(init.headers);
   if (config.apiKey) headers.set('Authorization', `Bearer ${config.apiKey}`);
+  // Set before the caller's headers are applied so an explicit per-call
+  // identity still wins; the default only fills the gap left by the runtime's
+  // own generic HTTP-library agent.
+  headers.set('User-Agent', OPENCODE_GO_USER_AGENT);
   if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }

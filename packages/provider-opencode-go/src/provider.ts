@@ -26,7 +26,7 @@ import { opencodeGoCatalogModelForId, type OpencodeGoCatalogModel, type Opencode
 import { assertOpencodeGoUpstreamRecord, type OpencodeGoUpstreamConfig } from './config.ts';
 import { OPENCODE_GO_DEFAULT_FLAGS } from './defaults.ts';
 import { fetchOpencodeGoModelIds } from './fetch-models.ts';
-import { opencodeGoFetchOpenAIChatCompletions, opencodeGoFetchAnthropicMessages, opencodeGoFetchAnthropicMessagesCountTokens, opencodeGoFetchOpenAIResponses, opencodeGoFetchOpenAIResponsesCompact } from './fetch.ts';
+import { OPENCODE_GO_SESSION_HEADER, opencodeGoFetchOpenAIChatCompletions, opencodeGoFetchAnthropicMessages, opencodeGoFetchAnthropicMessagesCountTokens, opencodeGoFetchOpenAIResponses, opencodeGoFetchOpenAIResponsesCompact } from './fetch.ts';
 import { pricingForOpencodeGoModelKey } from './pricing.ts';
 import { readOpencodeGoUpstreamState } from './state.ts';
 import { scheduleOpencodeGoUsageProbe } from './usage-probe.ts';
@@ -231,7 +231,13 @@ export const createOpencodeGoProvider = (record: UpstreamRecord): Provider => {
     upstreamId: record.id,
     kind: 'opencode-go' as UpstreamProviderKind,
     name: record.name,
-    inboundHeaderAllowlist: [],
+    // The gateway filters the client's request through this allowlist before
+    // the provider sees it, so an empty list silently strips the conversation
+    // identifier OpenCode Go routes and caches on. Admitting the one name lets a
+    // validated client supply its native session header; a client that sends
+    // none simply dispatches without it rather than having a fabricated one
+    // attributed to it.
+    inboundHeaderAllowlist: [OPENCODE_GO_SESSION_HEADER],
     disabledPublicModelIds: record.disabledPublicModelIds,
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
