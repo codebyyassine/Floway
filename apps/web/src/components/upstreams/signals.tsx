@@ -237,7 +237,10 @@ const opencodeGoSignals = (record: Extract<UpstreamRecord, { kind: 'opencode-go'
   if (observation === null) return [];
 
   // A spent window stays on the row beside its percentage: the red value states
-  // the block, and the number states how full the window is.
+  // the block, and the number states how full the window is. It keeps the
+  // window's own length as the label rather than swapping in a remaining-time
+  // countdown -- a window label means the same thing on every row -- and the
+  // tooltip already carries the instant the window resets.
   return readOpencodeGoWindows(observation.data).map(item => {
     const label = windowLengthLabel(item.minutes);
     return {
