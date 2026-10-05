@@ -472,7 +472,7 @@ const en = {
           codex: 'ChatGPT Plus, Pro, or Team',
           'claude-code': 'Claude Pro, Max, or Team subscription',
           ollama: 'ollama.com or self-hosted',
-          'opencode-go': 'OpenCode Go subscription',
+          'opencode-go': 'Go or Go Plus subscription',
         },
         models: {
           count_one: '{{count, number}} model',
@@ -1017,6 +1017,10 @@ const en = {
             backgroundFailed: 'The last background refresh failed: {{message}}',
           },
         },
+        opencodeGo: {
+          baseUrlHint: 'OpenCode Go serves every model from one published gateway, and Floway fills in that address for you.',
+          apiKeyHint: 'Create a key in the OpenCode console at opencode.ai/auth after subscribing to Go or Go Plus.',
+        },
         oauth: {
           refresh: 'Refresh credential',
           reimport: 'Re-import credential',
@@ -1036,6 +1040,7 @@ const en = {
           models: 'One or more models have an invalid configuration.',
           copilot: 'Complete GitHub device authorization before saving.',
           credential: 'Import a credential before saving.',
+          apiKey: 'Enter an API key before saving.',
         },
         toast: {
           saving: 'Saving upstream {{name}}',

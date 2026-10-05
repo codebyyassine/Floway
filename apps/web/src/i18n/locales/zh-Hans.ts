@@ -448,7 +448,7 @@ const zhHansCN = {
           codex: 'ChatGPT Plus、Pro 或 Team',
           'claude-code': 'Claude Pro、Max 或 Team 订阅',
           ollama: 'ollama.com 或自托管服务',
-          'opencode-go': 'OpenCode Go 订阅',
+          'opencode-go': 'Go 或 Go Plus 订阅',
         },
         models: {
           count_other: '{{count, number}} 个模型',
@@ -970,6 +970,10 @@ const zhHansCN = {
             backgroundFailed: '最近一次后台刷新失败：{{message}}',
           },
         },
+        opencodeGo: {
+          baseUrlHint: 'OpenCode Go 的所有模型都由同一个公开网关提供服务，该地址由 Floway 自动填写。',
+          apiKeyHint: '订阅 Go 或 Go Plus 后，在 OpenCode 控制台 opencode.ai/auth 创建密钥。',
+        },
         oauth: {
           'refresh': '刷新凭据',
           reimport: '重新导入凭据',
@@ -988,6 +992,7 @@ const zhHansCN = {
           models: '一个或多个模型配置无效。',
           copilot: '请先完成 GitHub 设备授权。',
           credential: '请先导入凭据。',
+          apiKey: '请输入 API 密钥后再保存。',
         },
         toast: {
           saving: '正在保存上游 {{name}}',

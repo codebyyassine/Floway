@@ -245,24 +245,28 @@ function OllamaConfig({ record }: { record: Extract<UpstreamRecord, { kind: 'oll
   </div>;
 }
 
+// OpenCode Go publishes one gateway address (https://opencode.ai/docs/go/#endpoints)
+// and no documented self-hosted or proxy deployment, so the address is
+// Floway's to state rather than a value the operator could mistype. The field
+// still holds the form's value: it is what Save sends.
 function OpencodeGoConfig({ record }: { record: Extract<UpstreamRecord, { kind: 'opencode-go' }> }) {
   const { t } = useTranslation();
   const { control } = useFormContext<ValuesForKind<'opencode-go'>>();
   return <div className="grid gap-4">
-    <Field label={t('dashboard.upstreamEditor.fields.baseUrl')}>
-      <Controller control={control} name="config.baseUrl" render={({ field }) => <Input className="font-mono" name={field.name} onBlur={field.onBlur} onChange={(_, data) => field.onChange(data.value)} ref={field.ref} value={field.value} />} />
+    <Field hint={t('dashboard.upstreamEditor.opencodeGo.baseUrlHint')} label={t('dashboard.upstreamEditor.fields.baseUrl')}>
+      <Controller control={control} name="config.baseUrl" render={({ field }) => <Input className="font-mono" name={field.name} onBlur={field.onBlur} onChange={(_, data) => field.onChange(data.value)} readOnly ref={field.ref} value={field.value} />} />
     </Field>
-    <SecretField secretSet={record.config.apiKeySet === true || Boolean(record.config.apiKey)} optional />
+    <SecretField hint={t('dashboard.upstreamEditor.opencodeGo.apiKeyHint')} secretSet={record.config.apiKeySet === true || Boolean(record.config.apiKey)} />
   </div>;
 }
 
-function SecretField({ optional, secretSet }: { optional?: boolean; secretSet: boolean }) {
+function SecretField({ hint, optional, secretSet }: { hint?: string; optional?: boolean; secretSet: boolean }) {
   const { t } = useTranslation();
   const { control } = useFormContext<ValuesForKind<'custom' | 'azure' | 'ollama' | 'opencode-go'>>();
   const [visible, setVisible] = useState(false);
   return <Field
     label={`${t('dashboard.upstreamEditor.fields.apiKey')}${optional ? ` (${t('dashboard.upstreamEditor.optional')})` : ''}`}
-    hint={secretSet ? t('dashboard.upstreamEditor.secretKeep') : undefined}
+    hint={secretSet ? t('dashboard.upstreamEditor.secretKeep') : hint}
   >
     <Controller
       control={control}

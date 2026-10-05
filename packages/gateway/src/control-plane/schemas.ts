@@ -228,7 +228,12 @@ const ollamaConfigSchema = z.object({
 // The bearer credential is optional at the wire layer so edit-mode PATCH can
 // omit it to keep the stored secret; the runtime parser enforces presence.
 const opencodeGoConfigSchema = z.object({
-  baseUrl: z.string().min(1),
+  // Optional: the provider owns the vendor endpoint and defaults a missing
+  // base URL to it, so an operator can supply only an API key. An explicit
+  // value stays accepted for imported records, but the dashboard does not
+  // expose one — the vendor publishes no documented self-hosted or proxy
+  // deployment (https://opencode.ai/docs/go/#endpoints).
+  baseUrl: z.string().min(1).optional(),
   // Optional: sent as `Authorization: Bearer <apiKey>` when set. PATCH passes
   // `null` to explicitly clear it.
   apiKey: z.string().nullable().optional(),

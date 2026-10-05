@@ -99,7 +99,12 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
     if (data.mode !== 'create') return;
     if (record.kind === 'copilot' && !values.config.githubToken) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.validation.copilot', path: ['config'] });
     if ((record.kind === 'codex' || record.kind === 'claude-code') && values.config.accounts.length === 0) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.validation.credential', path: ['config'] });
-  }), [data.mode, record.kind]);
+    // Every other API-key provider rejects a blank key in its own runtime
+    // parser; this one accepts it and would then serve 401s with no probe in
+    // the list to say so. A copy carries the source's key in the record even
+    // though its form field is blank, so the stored half answers for it.
+    if (record.kind === 'opencode-go' && !String(values.config.apiKey ?? '').trim() && !record.config.apiKey) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.validation.apiKey', path: ['config'] });
+  }), [data.mode, record]);
   const form = useForm<UpstreamEditorValues>({
     defaultValues: initialValues,
     mode: 'onBlur',

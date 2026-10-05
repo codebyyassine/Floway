@@ -11,7 +11,7 @@ import { assertCodexUpstreamRecord, assertCodexUpstreamState } from '@floway-dev
 import { assertCopilotUpstreamRecord, assertCopilotUpstreamState } from '@floway-dev/provider-copilot';
 import { assertCustomUpstreamRecord } from '@floway-dev/provider-custom';
 import { assertOllamaUpstreamRecord, readOllamaUpstreamState } from '@floway-dev/provider-ollama';
-import { assertOpencodeGoUpstreamRecord } from '@floway-dev/provider-opencode-go';
+import { assertOpencodeGoUpstreamRecord, OPENCODE_GO_DEFAULT_BASE_URL } from '@floway-dev/provider-opencode-go';
 
 export type { FullSerializedUpstreamRecord } from './types.ts';
 
@@ -229,6 +229,9 @@ export const blueprintUpstreamRecord = (kind: UpstreamProviderKind): BlueprintSe
   case 'ollama':
     return { ...base, kind, config: { baseUrl: '', apiKey: '', cloudUsage: false, models: [] }, state: null };
   case 'opencode-go':
-    return { ...base, kind, config: { baseUrl: '', apiKey: '', models: [] }, state: null };
+    // The endpoint is a property of the vendor, not an operator choice, so the
+    // blueprint opens on the provider's own default rather than an empty field
+    // the operator would have to know to fill in.
+    return { ...base, kind, config: { baseUrl: OPENCODE_GO_DEFAULT_BASE_URL, apiKey: '', models: [] }, state: null };
   }
 };
