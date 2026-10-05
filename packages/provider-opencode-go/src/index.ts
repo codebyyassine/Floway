@@ -13,3 +13,5 @@ export { pricingForOpencodeGoModelKey } from './pricing.ts';
 export { effortForOpencodeGoModelKey, type OpencodeGoEffortConfig } from './capabilities.ts';
 export { opencodeGoCatalogModelForId, opencodeGoCatalogModels, type OpencodeGoCatalogModel, type OpencodeGoEndpointKey } from './catalog.ts';
 export { fetchOpencodeGoModelIds } from './fetch-models.ts';
+export { assertOpencodeGoUpstreamState, emptyOpencodeGoUpstreamState, readOpencodeGoUpstreamState, type OpencodeGoUpstreamState, type OpencodeGoUsageObservation, type OpencodeGoUsageProbeEntry } from './state.ts';
+export { OPENCODE_GO_USAGE_PROBE_MIN_INTERVAL_MS, fetchOpencodeGoUsageProbe, isOpencodeGoUsageEnabled, refreshOpencodeGoUsageProbe, scheduleOpencodeGoUsageProbe } from './usage-probe.ts';

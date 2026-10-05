@@ -44,6 +44,7 @@ import type {
 } from '@floway-dev/provider-ollama';
 import type {
   OpencodeGoUpstreamConfig as StoredOpencodeGoUpstreamConfig,
+  OpencodeGoUpstreamState as StoredOpencodeGoUpstreamState,
 } from '@floway-dev/provider-opencode-go';
 
 export type { ClaudeCodeQuotaWindow, CodexQuotaSnapshot, CodexQuotaSnapshotMap, CodexRateLimitResetCredit, CodexRateLimitResetCredits, CustomModelsFetch, ProxyFallbackEntry };
@@ -180,7 +181,7 @@ export type RedactedSerializedUpstreamRecord =
   | (SerializedUpstreamRecordBase & { kind: 'codex'; config: StoredCodexUpstreamConfig; state: { accounts: RedactedCodexCredential[] } })
   | (SerializedUpstreamRecordBase & { kind: 'claude-code'; config: StoredClaudeCodeUpstreamConfig; state: { accounts: RedactedClaudeCodeCredential[] } })
   | (SerializedUpstreamRecordBase & { kind: 'ollama'; config: RedactedOllamaConfig; state: StoredOllamaUpstreamState | null })
-  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: RedactedOpencodeGoConfig; state: null });
+  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: RedactedOpencodeGoConfig; state: StoredOpencodeGoUpstreamState | null });
 
 export type FullSerializedUpstreamRecord =
   | (SerializedUpstreamRecordBase & { kind: 'custom'; config: StoredCustomUpstreamConfig; state: null })
@@ -189,7 +190,7 @@ export type FullSerializedUpstreamRecord =
   | (SerializedUpstreamRecordBase & { kind: 'codex'; config: StoredCodexUpstreamConfig; state: StoredCodexUpstreamState })
   | (SerializedUpstreamRecordBase & { kind: 'claude-code'; config: StoredClaudeCodeUpstreamConfig; state: StoredClaudeCodeUpstreamState })
   | (SerializedUpstreamRecordBase & { kind: 'ollama'; config: StoredOllamaUpstreamConfig; state: StoredOllamaUpstreamState | null })
-  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: StoredOpencodeGoUpstreamConfig; state: null });
+  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: StoredOpencodeGoUpstreamConfig; state: StoredOpencodeGoUpstreamState | null });
 
 // A blueprint is an unsaved upstream, so it carries no hue: the dashboard
 // picks one distinct from the hues already in use and sends it on create.
@@ -231,7 +232,7 @@ export type UpstreamRecord =
   | (DashboardUpstreamRecordBase & { kind: 'codex'; config: CodexUpstreamConfig; state: CodexUpstreamState; codex_quota?: CodexQuotaSnapshotMap | null })
   | (DashboardUpstreamRecordBase & { kind: 'claude-code'; config: ClaudeCodeUpstreamConfig; state: ClaudeCodeUpstreamState })
   | (DashboardUpstreamRecordBase & { kind: 'ollama'; config: OllamaUpstreamConfig; state: StoredOllamaUpstreamState | null })
-  | (DashboardUpstreamRecordBase & { kind: 'opencode-go'; config: OpencodeGoUpstreamConfig; state: null });
+  | (DashboardUpstreamRecordBase & { kind: 'opencode-go'; config: OpencodeGoUpstreamConfig; state: StoredOpencodeGoUpstreamState | null });
 
 export interface ListedUpstreamModel extends UpstreamModelConfig {
   codexDefaults?: UpstreamModelConfig;

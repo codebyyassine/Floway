@@ -39,3 +39,7 @@ export const opencodeGoFetchAnthropicMessages = (config: OpencodeGoUpstreamConfi
   opencodeGoFetchInternal(config, '/v1/messages', init, options);
 export const opencodeGoFetchAnthropicMessagesCountTokens = (config: OpencodeGoUpstreamConfig, init: FetchInit, options: UpstreamFetchOptions): Promise<Response> =>
   opencodeGoFetchInternal(config, '/v1/messages/count_tokens', init, options);
+// Subscription quota windows. Undocumented — see usage-probe.ts for the
+// endpoint's provenance and the shape it returns.
+export const opencodeGoFetchUsage = (config: OpencodeGoUpstreamConfig, init: FetchInit, options: UpstreamFetchOptions): Promise<Response> =>
+  opencodeGoFetchInternal(config, '/v1/usage', init, options);

@@ -10,6 +10,7 @@ import { copilotQuota, readBuckets } from './copilot-quota';
 import { planLabel as copilotPlanLabel } from './copilot-seat';
 import { planLabel as ollamaPlanLabel } from './ollama-account';
 import { activityCostText, isZeroActivityCost, readActivityCost, readWindows } from './ollama-usage';
+import { readWindows as readOpencodeGoWindows } from './opencode-go-usage';
 import { providerLabel } from './provider-badge';
 import { quotaRingTone, WALL_CLOCK_REFRESH_MS, windowLengthLabel } from './subscription-quota';
 import type { UpstreamRecord } from '../../api/types';
@@ -230,6 +231,26 @@ const ollamaSignals = (record: Extract<UpstreamRecord, { kind: 'ollama' }>, t: T
   return signals;
 };
 
+const opencodeGoSignals = (record: Extract<UpstreamRecord, { kind: 'opencode-go' }>, t: TFunction, locale: string): UpstreamSignal[] => {
+  const probe = record.state?.usageProbe ?? null;
+  const observation = probe?.observation ?? null;
+  if (observation === null) return [];
+
+  // A spent window stays on the row beside its percentage: the red value states
+  // the block, and the number states how full the window is.
+  return readOpencodeGoWindows(observation.data).map(item => {
+    const label = windowLengthLabel(item.minutes);
+    return {
+      key: item.key,
+      percent: item.percent,
+      value: percentValue(t, item.percent),
+      label,
+      detail: meterDetail(t, label, item.percent, item.resetAt, observation.fetchedAt, locale),
+      blocked: item.blocked,
+    };
+  });
+};
+
 const upstreamSignals = (record: UpstreamRecord, t: TFunction, locale: string, now: number): UpstreamSignal[] => {
   switch (record.kind) {
   // An operator-configured endpoint publishes no account of its own to report on.
@@ -240,8 +261,7 @@ const upstreamSignals = (record: UpstreamRecord, t: TFunction, locale: string, n
   case 'codex': return codexSignals(record, t, locale, now);
   case 'claude-code': return claudeCodeSignals(record, t, locale, now);
   case 'ollama': return ollamaSignals(record, t, locale);
-  // No usage windows to report: the row carries the endpoint alone.
-  case 'opencode-go': return [];
+  case 'opencode-go': return opencodeGoSignals(record, t, locale);
   }
 };
 

@@ -28,6 +28,8 @@ import { OPENCODE_GO_DEFAULT_FLAGS } from './defaults.ts';
 import { fetchOpencodeGoModelIds } from './fetch-models.ts';
 import { opencodeGoFetchOpenAIChatCompletions, opencodeGoFetchAnthropicMessages, opencodeGoFetchAnthropicMessagesCountTokens, opencodeGoFetchOpenAIResponses, opencodeGoFetchOpenAIResponsesCompact } from './fetch.ts';
 import { pricingForOpencodeGoModelKey } from './pricing.ts';
+import { readOpencodeGoUpstreamState } from './state.ts';
+import { scheduleOpencodeGoUsageProbe } from './usage-probe.ts';
 import { parseAnthropicMessagesStream } from '@floway-dev/protocols/anthropic-messages';
 import { type ModelEndpoints, kindForEndpoints } from '@floway-dev/protocols/common';
 import { parseOpenAIChatCompletionsStream } from '@floway-dev/protocols/openai-chat-completions';
@@ -93,6 +95,27 @@ const finalizeOpencodeGoModels = (
 export const createOpencodeGoProvider = (record: UpstreamRecord): Provider => {
   const { config } = assertOpencodeGoUpstreamRecord(record);
   const upstreamFlags = resolveEffectiveFlags([OPENCODE_GO_DEFAULT_FLAGS, record.flagOverrides]);
+  const state = readOpencodeGoUpstreamState(record.state);
+
+  // Every metered call moves the 5-hour, weekly and monthly windows, and the
+  // vendor exposes them only on a separate account endpoint, so each dispatched
+  // call arms a debounced background refresh. The interval behind that debounce
+  // is deliberately long: the endpoint is an unmemoized join per call, so
+  // reading it on every request would cost more than the reading is worth.
+  const armProbes = (opts: UpstreamCallOptions): void => {
+    scheduleOpencodeGoUsageProbe(record.id, config, state, opts.fetcher, opts.waitUntil);
+  };
+
+  // Arms once the upstream round-trip has produced a response, so the reading
+  // accounts for the call that just happened. A rate-limited response arms it
+  // too -- that is exactly when an operator wants the windows on screen. A
+  // transport that threw never reached the account and arms nothing, and token
+  // counting never reaches a model at all.
+  const withProbes = <T>(opts: UpstreamCallOptions, dispatched: Promise<T>): Promise<T> =>
+    dispatched.then(result => {
+      armProbes(opts);
+      return result;
+    });
 
   // Manual models always emit.
   const overriddenIds = new Set(config.models.map(m => m.upstreamModelId));
@@ -166,22 +189,22 @@ export const createOpencodeGoProvider = (record: UpstreamRecord): Provider => {
       );
       return [...manualModels, ...auto];
     },
-    callOpenAIChatCompletions: (model, body, signal, opts) => callStreaming(opencodeGoFetchOpenAIChatCompletions, model, body, signal, [...opts.headers], parseOpenAIChatCompletionsStream, opts),
+    callOpenAIChatCompletions: (model, body, signal, opts) => withProbes(opts, callStreaming(opencodeGoFetchOpenAIChatCompletions, model, body, signal, [...opts.headers], parseOpenAIChatCompletionsStream, opts)),
     callOpenAIResponses: async (model, body, action, signal, opts) => {
       switch (action) {
       case 'generate': {
-        const stream = await callStreaming(opencodeGoFetchOpenAIResponses, model, body, signal, [...opts.headers], parseOpenAIResponsesStream, opts);
+        const stream = await withProbes(opts, callStreaming(opencodeGoFetchOpenAIResponses, model, body, signal, [...opts.headers], parseOpenAIResponsesStream, opts));
         return stream.ok
           ? { action: 'generate', ok: true, events: stream.events, modelKey: stream.modelKey, ...(stream.headers ? { headers: stream.headers } : {}) }
           : { action: 'generate', ok: false, response: stream.response, modelKey: stream.modelKey };
       }
       case 'compact': {
         const rawModelId = rawModelIdOf(model);
-        const response = await opencodeGoFetchOpenAIResponsesCompact(
+        const response = await withProbes(opts, opencodeGoFetchOpenAIResponsesCompact(
           config,
           { method: 'POST', body: jsonRequestBody({ ...toCompactPayloadShape(body), model: rawModelId }), signal },
           { extraHeaders: [...opts.headers], fetcher: opts.fetcher, wrapUpstreamCall: opts.wrapUpstreamCall },
-        );
+        ));
         return response.ok
           ? { action: 'compact', ok: true, result: (await response.json()) as OpenAIResponsesCompactionResult, modelKey: rawModelId }
           : { action: 'compact', ok: false, response, modelKey: rawModelId };
@@ -191,7 +214,9 @@ export const createOpencodeGoProvider = (record: UpstreamRecord): Provider => {
         throw new Error(`Unhandled OpenAIResponsesAction: ${action as string}`);
       }
     },
-    callAnthropicMessages: (model, body, signal, opts) => callStreaming(opencodeGoFetchAnthropicMessages, model, body, signal, headersForAnthropicMessagesCall([...opts.headers], opts.anthropicBeta), parseAnthropicMessagesStream, opts),
+    callAnthropicMessages: (model, body, signal, opts) => withProbes(opts, callStreaming(opencodeGoFetchAnthropicMessages, model, body, signal, headersForAnthropicMessagesCall([...opts.headers], opts.anthropicBeta), parseAnthropicMessagesStream, opts)),
+    // Token counting reaches no model and leaves the windows untouched, so it
+    // arms nothing.
     callAnthropicMessagesCountTokens: (model, body, signal, opts) => call(opencodeGoFetchAnthropicMessagesCountTokens, model, body, signal, headersForAnthropicMessagesCall([...opts.headers], opts.anthropicBeta), opts),
     callAlphaSearch: rejectUnsupported('callAlphaSearch'),
     callOpenAICompletions: rejectUnsupported('callOpenAICompletions'),

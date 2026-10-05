@@ -556,6 +556,10 @@ export const previewModelsBody = z.object({
 
 export const ollamaUsageBody = recordOnlyBody;
 
+// --- opencode-go ---
+
+export const opencodeGoUsageBody = recordOnlyBody;
+
 // --- agent setup ---
 //
 // The lease update/heartbeat wire schemas live in @floway-dev/agent-setup

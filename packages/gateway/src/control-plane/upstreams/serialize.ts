@@ -11,7 +11,7 @@ import { assertCodexUpstreamRecord, assertCodexUpstreamState } from '@floway-dev
 import { assertCopilotUpstreamRecord, assertCopilotUpstreamState } from '@floway-dev/provider-copilot';
 import { assertCustomUpstreamRecord } from '@floway-dev/provider-custom';
 import { assertOllamaUpstreamRecord, readOllamaUpstreamState } from '@floway-dev/provider-ollama';
-import { assertOpencodeGoUpstreamRecord, OPENCODE_GO_DEFAULT_BASE_URL } from '@floway-dev/provider-opencode-go';
+import { assertOpencodeGoUpstreamRecord, readOpencodeGoUpstreamState, OPENCODE_GO_DEFAULT_BASE_URL } from '@floway-dev/provider-opencode-go';
 
 export type { FullSerializedUpstreamRecord } from './types.ts';
 
@@ -152,7 +152,9 @@ export const upstreamRecordToJson = (upstream: UpstreamRecord): RedactedSerializ
       kind: 'opencode-go',
       // The bearer stays server-only; only its presence crosses.
       config: { baseUrl: config.baseUrl, models: clone(config.models), apiKeySet: hasSecret(config.apiKey) },
-      state: stateless(upstream),
+      // The usage probe holds upstream-owned windows and counters with no
+      // secret in them, so the slot crosses whole.
+      state: upstream.state === null ? null : readOpencodeGoUpstreamState(upstream.state),
     };
   }
   }
@@ -190,7 +192,7 @@ export const upstreamRecordToFullJson = (upstream: UpstreamRecord): FullSerializ
   }
   case 'opencode-go': {
     const record = assertOpencodeGoUpstreamRecord(upstream);
-    return { ...base, kind: 'opencode-go', config: clone(record.config), state: stateless(upstream) };
+    return { ...base, kind: 'opencode-go', config: clone(record.config), state: upstream.state === null ? null : readOpencodeGoUpstreamState(upstream.state) };
   }
   }
 };
