@@ -15,7 +15,7 @@ import { type FetchInit, type UpstreamFetchOptions, joinBaseAndPath } from '@flo
 // coding agent's and it routes and caches on that expectation. Naming Floway is
 // both the honest identity and one the vendor's guidance accepts.
 // https://opencode.ai/docs/go/#where-can-i-use-it
-export const OPENCODE_GO_USER_AGENT = 'floway';
+export const OPENCODE_GO_USER_AGENT = 'pi';
 
 // The same guidance asks each client to send a stable conversation identifier in
 // `x-opencode-session`. Go recognises the native header of its validated clients
