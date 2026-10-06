@@ -363,6 +363,9 @@ importers:
       '@floway-dev/provider-opencode-go':
         specifier: workspace:*
         version: link:../provider-opencode-go
+      '@floway-dev/provider-opencode-zen':
+        specifier: workspace:*
+        version: link:../provider-opencode-zen
       '@floway-dev/proxy':
         specifier: workspace:*
         version: link:../proxy
@@ -609,6 +612,19 @@ importers:
         specifier: workspace:*
         version: link:../test-utils
 
+  packages/provider-opencode-zen:
+    dependencies:
+      '@floway-dev/protocols':
+        specifier: workspace:*
+        version: link:../protocols
+      '@floway-dev/provider':
+        specifier: workspace:*
+        version: link:../provider
+    devDependencies:
+      '@floway-dev/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+
   packages/proxy:
     dependencies:
       '@floway-dev/http':
@@ -675,6 +691,9 @@ importers:
       '@floway-dev/provider-opencode-go':
         specifier: workspace:*
         version: link:../packages/provider-opencode-go
+      '@floway-dev/provider-opencode-zen':
+        specifier: workspace:*
+        version: link:../packages/provider-opencode-zen
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
