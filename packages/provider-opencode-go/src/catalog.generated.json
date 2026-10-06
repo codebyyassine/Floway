@@ -2,7 +2,7 @@
   "$comment": [
     "Generated from https://models.opencode.ai/api.json (provider block `opencode-go`) joined against https://opencode.ai/zen/go/v1/models, with per-model endpoints from https://opencode.ai/docs/go.",
     "Refresh: pnpm tools:generate-opencode-go-catalog",
-    "A model id present upstream but absent from the registry is still emitted with minimal metadata; a live model with no row in the docs table carries no endpoint."
+    "A model id present upstream but absent from the registry is refused (filtered out); a live model with no row in the docs table carries no endpoint."
   ],
   "models": [
     {
@@ -63,9 +63,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "minimax-m2.5"
     },
     {
       "id": "kimi-k3",
@@ -159,9 +156,6 @@
       }
     },
     {
-      "id": "kimi-k2.5"
-    },
-    {
       "id": "glm-5.2",
       "endpoint": "openaiChatCompletions",
       "name": "GLM-5.2",
@@ -229,12 +223,6 @@
       }
     },
     {
-      "id": "glm-5.1"
-    },
-    {
-      "id": "glm-5"
-    },
-    {
       "id": "deepseek-v4-pro",
       "endpoint": "openaiChatCompletions",
       "name": "DeepSeek V4 Pro (New)",
@@ -277,9 +265,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "deepseek-flash"
     },
     {
       "id": "deepseek-v4.1-flash",
@@ -473,15 +458,6 @@
       }
     },
     {
-      "id": "qwen3.5-plus"
-    },
-    {
-      "id": "mimo-v2-pro"
-    },
-    {
-      "id": "mimo-v2-omni"
-    },
-    {
       "id": "mimo-v2.6-pro",
       "endpoint": "openaiChatCompletions",
       "name": "MiMo-V2.6-Pro",
@@ -638,9 +614,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "hy3-preview"
     },
     {
       "id": "gpt-5.6-luna",
@@ -832,9 +805,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "omen-alpha"
     },
     {
       "id": "gpt-6-luna",

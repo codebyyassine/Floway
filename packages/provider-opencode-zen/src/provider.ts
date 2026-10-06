@@ -7,14 +7,13 @@
 //
 // Endpoint → wire mapping comes from the snapshot's per-model `endpoint` key:
 // this is the whole point of the provider — one upstream serves all three
-// wires, and each model declares which one it speaks. A model id present
-// upstream but absent from the snapshot — or present in the snapshot with no
-// endpoint, because the vendor's endpoint table documents no row for it — is
-// still emitted with minimal metadata (availability outranks metadata
-// completeness) on the default chat-completions wire. The one exception is a
-// live id the endpoint table wires to a path Floway cannot route
-// (`OPENCODE_ZEN_UNROUTABLE_MODEL_IDS`): emitting it would list a model no
-// wire can serve, so it is dropped.
+// wires, and each model declares which one it speaks. A live model id absent
+// from the snapshot (no registry metadata) is refused — filtered out, never
+// emitted on a fallback wire. A snapshot row with no endpoint, because the
+// vendor's endpoint table documents no row for it, falls back to the default
+// chat-completions wire. The one exception is a live id the endpoint table
+// wires to a path Floway cannot route (`OPENCODE_ZEN_UNROUTABLE_MODEL_IDS`):
+// emitting it would list a model no wire can serve, so it is dropped.
 //
 // Pricing prefers the generated registry table (see pricing.ts) and falls
 // back to the snapshot's own pricing when the table has no entry.
@@ -44,11 +43,12 @@ import { headersForAnthropicMessagesCall, jsonRequestBody, publicModelId, resolv
 const rawModelIdOf = (model: ProviderModel): string => model.providerData as string;
 
 // One upstream, three wires: each snapshot endpoint key selects exactly one
-// outbound route. Unknown ids (absent from the snapshot, or snapshotted with
-// no endpoint because the vendor documents no row for them) default to the
-// chat-completions wire with no further metadata — except the ids in
-// OPENCODE_ZEN_UNROUTABLE_MODEL_IDS, whose docs-table rows name a path Floway
-// cannot route and which are dropped instead of misrouted.
+// outbound route. Live ids absent from the snapshot are refused (see
+// finalizeOpencodeZenModels); the chat-completions fallback below covers
+// only snapshot rows with no endpoint, because the vendor documents no row
+// for them — except the ids in OPENCODE_ZEN_UNROUTABLE_MODEL_IDS, whose
+// docs-table rows name a path Floway cannot route and which are dropped
+// instead of misrouted.
 const ENDPOINTS_BY_KEY: Readonly<Record<OpencodeZenEndpointKey, ModelEndpoints>> = {
   openaiResponses: { openaiResponses: {} },
   anthropicMessages: { anthropicMessages: {} },
@@ -72,7 +72,12 @@ const finalizeOpencodeZenModels = (
   const models: ProviderModel[] = [];
   for (const id of ids) {
     const snapshot = opencodeZenCatalogModelForId(id);
-    const endpoints = ENDPOINTS_BY_KEY[snapshot?.endpoint ?? 'openaiChatCompletions'];
+    // Refused: a live id the snapshot does not describe carries no metadata
+    // Floway can trust, so it is filtered out rather than emitted on a
+    // fallback wire. Manual `config.models[]` entries bypass this path and
+    // always emit (see manualModels above).
+    if (snapshot === undefined) continue;
+    const endpoints = ENDPOINTS_BY_KEY[snapshot.endpoint ?? 'openaiChatCompletions'];
     const limits: ProviderModel['limits'] = {};
     if (snapshot?.maxContextTokens !== undefined) limits.max_context_window_tokens = snapshot.maxContextTokens;
     if (snapshot?.maxOutputTokens !== undefined) limits.max_output_tokens = snapshot.maxOutputTokens;
@@ -171,7 +176,8 @@ export const createOpencodeZenProvider = (record: UpstreamRecord): Provider => {
         // Manual entries are the operator's explicit choice and always emit;
         // auto rows for ids the docs table wires to a path Floway cannot
         // route (see OPENCODE_ZEN_UNROUTABLE_MODEL_IDS) are dropped rather
-        // than misrouted on the chat-completions fallback.
+        // than misrouted on the chat-completions fallback. Live ids absent
+        // from the snapshot are refused inside finalizeOpencodeZenModels.
         ids.filter(id => !overriddenIds.has(id) && !OPENCODE_ZEN_UNROUTABLE_MODEL_IDS.has(id)),
         upstreamFlags,
       );

@@ -326,14 +326,13 @@ const catalogModelForRegistryEntry = (
 };
 
 // Joins the live availability signal against registry metadata and the
-// gateway's docs-table endpoints. A live id absent from the registry is still
-// emitted with minimal metadata — availability outranks metadata
-// completeness — while a registry row with no live counterpart is excluded
-// (which is also what filters deprecated rows: they linger in the registry
-// but are no longer served). A live id whose docs row wires it to a path
-// Floway cannot route is excluded from the catalog and reported in
-// `excluded`; a live id with no docs row at all is kept but carries no
-// endpoint.
+// gateway's docs-table endpoints. A live id absent from the registry is
+// refused (filtered out) — only registry-described models are emitted —
+// while a registry row with no live counterpart is excluded (which is also
+// what filters deprecated rows: they linger in the registry but are no
+// longer served). A live id whose docs row wires it to a path Floway cannot
+// route is excluded from the catalog and reported in `excluded`; a live id
+// with no docs row at all is kept but carries no endpoint.
 export const buildOpencodeSnapshot = (args: {
   registryPayload: unknown;
   liveIds: readonly unknown[];
@@ -354,9 +353,9 @@ export const buildOpencodeSnapshot = (args: {
     const endpoint = docs.endpoints.get(id);
     const entry = registryModels[id];
     if (entry === undefined) {
-      const minimal: { id: string; endpoint?: OpencodeEndpointKey } = { id };
-      if (endpoint !== undefined) minimal.endpoint = endpoint;
-      models.push(minimal);
+      // Refused: a live id the registry does not describe carries no
+      // metadata Floway can trust, so it never reaches the catalog. Manual
+      // `config.models[]` entries still let operators opt such ids in.
       continue;
     }
     models.push(catalogModelForRegistryEntry(id, entry, endpoint, args.source));

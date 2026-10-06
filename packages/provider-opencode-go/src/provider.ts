@@ -7,9 +7,10 @@
 //
 // Endpoint → wire mapping comes from the snapshot's per-model `endpoint` key:
 // this is the whole point of the provider — one upstream serves all three
-// wires, and each model declares which one it speaks. A model id present
-// upstream but absent from the snapshot is still emitted with minimal
-// metadata (availability outranks metadata completeness) on the default
+// wires, and each model declares which one it speaks. A live model id absent
+// from the snapshot (no registry metadata) is refused — filtered out, never
+// emitted on a fallback wire. A snapshot row with no endpoint, because the
+// vendor's endpoint table documents no row for it, falls back to the default
 // chat-completions wire.
 //
 // Pricing prefers the generated registry table (see pricing.ts) and falls
@@ -42,8 +43,10 @@ import { headersForAnthropicMessagesCall, jsonRequestBody, publicModelId, resolv
 const rawModelIdOf = (model: ProviderModel): string => model.providerData as string;
 
 // One upstream, three wires: each snapshot endpoint key selects exactly one
-// outbound route. Unknown ids (absent from the snapshot) default to the
-// chat-completions wire with no further metadata.
+// outbound route. Live ids absent from the snapshot are refused upstream of
+// here (see finalizeOpencodeGoModels); the chat-completions fallback below
+// covers only snapshot rows with no endpoint, because the vendor documents
+// no row for them.
 const ENDPOINTS_BY_KEY: Readonly<Record<OpencodeGoEndpointKey, ModelEndpoints>> = {
   openaiResponses: { openaiResponses: {} },
   anthropicMessages: { anthropicMessages: {} },
@@ -67,7 +70,12 @@ const finalizeOpencodeGoModels = (
   const models: ProviderModel[] = [];
   for (const id of ids) {
     const snapshot = opencodeGoCatalogModelForId(id);
-    const endpoints = ENDPOINTS_BY_KEY[snapshot?.endpoint ?? 'openaiChatCompletions'];
+    // Refused: a live id the snapshot does not describe carries no metadata
+    // Floway can trust, so it is filtered out rather than emitted on a
+    // fallback wire. Manual `config.models[]` entries bypass this path and
+    // always emit (see manualModels above).
+    if (snapshot === undefined) continue;
+    const endpoints = ENDPOINTS_BY_KEY[snapshot.endpoint ?? 'openaiChatCompletions'];
     const limits: ProviderModel['limits'] = {};
     if (snapshot?.maxContextTokens !== undefined) limits.max_context_window_tokens = snapshot.maxContextTokens;
     if (snapshot?.maxOutputTokens !== undefined) limits.max_output_tokens = snapshot.maxOutputTokens;

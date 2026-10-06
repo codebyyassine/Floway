@@ -25,9 +25,11 @@ test('opencodeGoCatalogModels routes representative ids to their documented wire
   assertEquals(opencodeGoCatalogModelForId('space-bunny')?.endpoint, 'openaiChatCompletions');
 });
 
-test('opencodeGoCatalogModels emits live ids absent from the registry with minimal metadata', () => {
-  assertEquals(opencodeGoCatalogModelForId('deepseek-flash'), { id: 'deepseek-flash' });
-  assertEquals(opencodeGoCatalogModelForId('omen-alpha'), { id: 'omen-alpha' });
+test('opencodeGoCatalogModels refuses live ids absent from the registry', () => {
+  assertEquals(opencodeGoCatalogModelForId('deepseek-flash'), undefined);
+  assertEquals(opencodeGoCatalogModelForId('omen-alpha'), undefined);
+  assertEquals(opencodeGoCatalogModels().some(model => model.id === 'deepseek-flash'), false);
+  assertEquals(opencodeGoCatalogModels().some(model => model.id === 'omen-alpha'), false);
 });
 
 test('opencodeGoCatalogModels excludes registry rows with no live counterpart', () => {

@@ -117,7 +117,10 @@ test('parseOpencodeDocsEndpoints fails on conflicting duplicate rows for one id'
 
 test('buildOpencodeSnapshot keeps a live model with no docs row but carries no endpoint', () => {
   const snapshot = buildOpencodeSnapshot({
-    registryPayload: registryPayload({ 'kimi-k3': registryModel({ name: 'Kimi K3' }) }),
+    registryPayload: registryPayload({
+      'kimi-k3': registryModel({ name: 'Kimi K3' }),
+      'qwen3.7-max': registryModel({ name: 'Qwen3.7 Max' }),
+    }),
     liveIds: ['kimi-k3', 'qwen3.7-max'],
     docsHtml: docsHtml(docsRow('kimi-k3', 'https://opencode.ai/zen/go/v1/chat/completions')),
     source: SOURCE,
@@ -133,9 +136,27 @@ test('buildOpencodeSnapshot keeps a live model with no docs row but carries no e
       modalities: ['text', 'image'],
       pricing: pricingForRegistryCost({ input: 1, output: 2, cache_read: 0.1 }, 'kimi-k3'),
     },
-    { id: 'qwen3.7-max' },
+    {
+      id: 'qwen3.7-max',
+      name: 'Qwen3.7 Max',
+      source: 'opencode-test',
+      maxContextTokens: 1000000,
+      maxOutputTokens: 65536,
+      modalities: ['text', 'image'],
+      pricing: pricingForRegistryCost({ input: 1, output: 2, cache_read: 0.1 }, 'qwen3.7-max'),
+    },
   ]);
   assertEquals(snapshot.excluded, []);
+});
+
+test('buildOpencodeSnapshot refuses live ids absent from the registry', () => {
+  const snapshot = buildOpencodeSnapshot({
+    registryPayload: registryPayload({ 'kimi-k3': registryModel() }),
+    liveIds: ['kimi-k3', 'omen-alpha'],
+    docsHtml: docsHtml(docsRow('kimi-k3', 'https://opencode.ai/zen/go/v1/chat/completions')),
+    source: SOURCE,
+  });
+  assertEquals(snapshot.catalog.models.map(model => model.id), ['kimi-k3']);
 });
 
 test('buildOpencodeSnapshot excludes live ids the docs table wires to an unroutable path', () => {
@@ -212,13 +233,13 @@ test('pricingForRegistryCost rejects a second context tier instead of diverging 
 
 test('buildOpencodeSnapshot excludes registry rows with no live counterpart', () => {
   const snapshot = buildOpencodeSnapshot({
-    registryPayload: registryPayload({ 'retired-model': registryModel() }),
+    registryPayload: registryPayload({ 'retired-model': registryModel(), 'live-model': registryModel() }),
     liveIds: ['live-model'],
     docsHtml: docsHtml(docsRow('live-model', 'https://example.test/v1/chat/completions')),
     source: SOURCE,
   });
-  assertEquals(snapshot.catalog.models, [{ id: 'live-model', endpoint: 'openaiChatCompletions' }]);
+  assertEquals(snapshot.catalog.models, [{ id: 'live-model', endpoint: 'openaiChatCompletions', name: 'Example', source: 'opencode-test', maxContextTokens: 1000000, maxOutputTokens: 65536, modalities: ['text', 'image'], pricing: pricingForRegistryCost({ input: 1, output: 2, cache_read: 0.1 }, 'live-model') }]);
   // Pricing and capabilities still cover every registry row, so historical
   // usage rows for retired ids keep resolving.
-  assertEquals(Object.keys(snapshot.pricing.base), ['retired-model']);
+  assertEquals(Object.keys(snapshot.pricing.base).toSorted(), ['live-model', 'retired-model']);
 });

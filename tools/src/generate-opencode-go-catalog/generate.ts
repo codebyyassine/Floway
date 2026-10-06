@@ -41,9 +41,10 @@ export type OpencodeGoGeneratedSnapshot = OpencodeGeneratedSnapshot;
 export { parseOpencodeDocsEndpoints, pricingForRegistryCost, reasoningForRegistryReasoningOptions } from '../generate-opencode-catalog/generate.ts';
 
 // Joins the live Go availability signal against registry metadata and the Go
-// docs-table endpoints. A live id with no docs-table row is kept but carries
-// no endpoint; a live id the docs table wires to a path Floway cannot route
-// is excluded and reported in `excluded`.
+// docs-table endpoints. A live id absent from the registry is refused
+// (filtered out); a live id with no docs-table row is kept but carries no
+// endpoint; a live id the docs table wires to a path Floway cannot route is
+// excluded and reported in `excluded`.
 export const buildOpencodeGoSnapshot = (args: {
   registryPayload: unknown;
   liveIds: readonly unknown[];

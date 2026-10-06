@@ -2,7 +2,7 @@
   "$comment": [
     "Generated from https://models.opencode.ai/api.json (provider block `opencode`) joined against https://opencode.ai/zen/v1/models, with per-model endpoints from https://opencode.ai/docs/zen.",
     "Refresh: pnpm tools:generate-opencode-zen-catalog",
-    "A model id present upstream but absent from the registry is still emitted with minimal metadata; a live model with no row in the docs table carries no endpoint.",
+    "A model id present upstream but absent from the registry is refused (filtered out); a live model with no row in the docs table carries no endpoint.",
     "Excluded live ids the docs table wires to a path Floway cannot route: gemini-3.6-flash (/v1/models/gemini-3.6-flash), gemini-3.8-flash (/v1/models/gemini-3.8-flash), gemini-3.7-flash (/v1/models/gemini-3.7-flash), gemini-3.5-flash-lite (/v1/models/gemini-3.5-flash-lite), gemini-3.5-flash (/v1/models/gemini-3.5-flash), gemini-3.1-pro (/v1/models/gemini-3.1-pro), gemini-3-flash (/v1/models/gemini-3-flash), jev-1.13 (/v1/systemone), jev-1.13-free (/v1/systemone)."
   ],
   "models": [

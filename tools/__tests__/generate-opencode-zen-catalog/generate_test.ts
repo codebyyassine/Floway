@@ -108,6 +108,15 @@ test('buildOpencodeZenSnapshot preserves free-tier zero rates and ignores input_
   assertEquals(snapshot.pricing.base['gemini-3.8-flash'], { input: '1.5', output: '7.5', cacheRead: '0.15' });
 });
 
+test('buildOpencodeZenSnapshot refuses live ids absent from the registry', () => {
+  const snapshot = buildOpencodeZenSnapshot({
+    registryPayload: registryPayload({ 'kimi-k3': registryModel() }),
+    liveIds: ['kimi-k3', 'future-model-unknown'],
+    docsHtml: docsHtml(docsRow('kimi-k3', 'https://opencode.ai/zen/v1/chat/completions')),
+  });
+  assertEquals(snapshot.catalog.models.map(model => model.id), ['kimi-k3']);
+});
+
 test('the Zen adapter reads the opencode registry block', () => {
   assertEquals(OPENCODE_ZEN_PROVIDER_BLOCK, 'opencode');
 });

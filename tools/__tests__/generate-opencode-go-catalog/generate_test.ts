@@ -67,25 +67,25 @@ test('buildOpencodeGoSnapshot keeps a live model with no docs row but carries no
   }]);
 });
 
-test('buildOpencodeGoSnapshot emits live ids absent from the registry with minimal metadata', () => {
+test('buildOpencodeGoSnapshot refuses live ids absent from the registry', () => {
   const snapshot = buildOpencodeGoSnapshot({
-    registryPayload: registryPayload({}),
-    liveIds: ['omen-alpha'],
+    registryPayload: registryPayload({ 'kimi-k3': registryModel() }),
+    liveIds: ['kimi-k3', 'omen-alpha'],
     docsHtml: docsHtml(docsRow('kimi-k3', 'https://opencode.ai/zen/go/v1/chat/completions')),
   });
-  assertEquals(snapshot.catalog.models, [{ id: 'omen-alpha' }]);
+  assertEquals(snapshot.catalog.models.map(model => model.id), ['kimi-k3']);
 });
 
 test('buildOpencodeGoSnapshot excludes registry rows with no live counterpart', () => {
   const snapshot = buildOpencodeGoSnapshot({
-    registryPayload: registryPayload({ 'retired-model': registryModel() }),
+    registryPayload: registryPayload({ 'retired-model': registryModel(), 'live-model': registryModel() }),
     liveIds: ['live-model'],
     docsHtml: docsHtml(docsRow('live-model', 'https://opencode.ai/zen/go/v1/chat/completions')),
   });
-  assertEquals(snapshot.catalog.models, [{ id: 'live-model', endpoint: 'openaiChatCompletions' }]);
+  assertEquals(snapshot.catalog.models.map(model => model.id), ['live-model']);
   // Pricing and capabilities still cover every registry row, so historical
   // usage rows for retired ids keep resolving.
-  assertEquals(Object.keys(snapshot.pricing.base), ['retired-model']);
+  assertEquals(Object.keys(snapshot.pricing.base).toSorted(), ['live-model', 'retired-model']);
 });
 
 test('buildOpencodeGoSnapshot keeps retired and replacement pricing rows distinct', () => {

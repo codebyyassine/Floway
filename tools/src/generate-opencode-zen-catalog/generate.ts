@@ -42,10 +42,11 @@ export { parseOpencodeDocsEndpoints, pricingForRegistryCost, reasoningForRegistr
 
 // Joins the live Zen availability signal against registry metadata and the
 // Zen docs-table endpoints. The live id set is what filters deprecated
-// registry rows, matching what OpenCode's own client lists. A live id with no
-// docs-table row is kept but carries no endpoint; a live id the docs table
-// wires to a path Floway cannot route (the `models/*` Gemini paths, the
-// `systemone` Jev endpoint) is excluded and reported in `excluded`.
+// registry rows, matching what OpenCode's own client lists. A live id absent
+// from the registry is refused (filtered out); a live id with no docs-table
+// row is kept but carries no endpoint; a live id the docs table wires to a
+// path Floway cannot route (the `models/*` Gemini paths, the `systemone` Jev
+// endpoint) is excluded and reported in `excluded`.
 export const buildOpencodeZenSnapshot = (args: {
   registryPayload: unknown;
   liveIds: readonly unknown[];

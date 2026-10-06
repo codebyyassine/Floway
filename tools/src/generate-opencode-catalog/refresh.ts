@@ -43,7 +43,7 @@ const catalogDocumentOf = (snapshot: OpencodeGeneratedSnapshot, source: Opencode
   const comment = [
     `Generated from ${OPENCODE_REGISTRY_URL} (provider block \`${source.block}\`) joined against ${source.liveModelsUrl}, with per-model endpoints from ${source.docsUrl}.`,
     `Refresh: ${source.refreshCommand}`,
-    'A model id present upstream but absent from the registry is still emitted with minimal metadata; a live model with no row in the docs table carries no endpoint.',
+    'A model id present upstream but absent from the registry is refused (filtered out); a live model with no row in the docs table carries no endpoint.',
   ];
   if (snapshot.excluded.length > 0) {
     const dropped = snapshot.excluded.map(entry => `${entry.id} (/v1/${entry.endpointPath})`).join(', ');

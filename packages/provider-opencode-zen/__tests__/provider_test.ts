@@ -44,7 +44,7 @@ test('getProvidedModels selects the per-model wire from the Floway OpenCode Zen 
   const instance = createOpencodeZenProvider(buildRecord());
   await withMockedFetch(respond, async () => {
     const models = await instance.instance.getProvidedModels(testFetcher);
-    assertEquals(models.map(m => m.id), ['gpt-5.5', 'qwen3.8-max', 'kimi-k3', 'claude-sonnet-4', 'future-model-unknown']);
+    assertEquals(models.map(m => m.id), ['gpt-5.5', 'qwen3.8-max', 'kimi-k3', 'claude-sonnet-4']);
 
     const gpt = models.find(m => m.id === 'gpt-5.5')!;
     assertEquals(gpt.kind, 'chat');
@@ -141,17 +141,15 @@ test('getProvidedModels drops live ids the docs table wires to a path Floway can
   );
 });
 
-test('getProvidedModels still emits upstream ids absent from the snapshot with minimal metadata', async () => {
+test('getProvidedModels refuses upstream ids absent from the snapshot', async () => {
   const instance = createOpencodeZenProvider(buildRecord());
   await withMockedFetch(respond, async () => {
     const models = await instance.instance.getProvidedModels(testFetcher);
-    const unknown = models.find(m => m.id === 'future-model-unknown')!;
-    assertEquals(unknown.kind, 'chat');
-    assertEquals(Object.keys(unknown.endpoints), ['openaiChatCompletions']);
-    assertEquals(unknown.limits, {});
-    assertEquals(unknown.chat, undefined);
-    assertEquals(unknown.pricing, undefined);
-    assertEquals(unknown.providerData, 'future-model-unknown');
+    // future-model-unknown is live upstream but has no registry metadata, so
+    // it is filtered out rather than emitted on a fallback wire. Manual
+    // `config.models[]` entries still let operators opt such ids in.
+    assertEquals(models.some(m => m.id === 'future-model-unknown'), false);
+    assertEquals(models.map(m => m.id), ['gpt-5.5', 'qwen3.8-max', 'kimi-k3', 'claude-sonnet-4']);
   });
 });
 
@@ -175,6 +173,29 @@ test('getProvidedModels merges manual overrides in front of auto-fetched models 
     assertEquals(models[0].display_name, 'Pinned K3');
     assertEquals(models[0].pricing, { entries: [{ rates: { input_tokens: '99', output_tokens: '99' } }] });
     assertEquals(models.filter(m => m.id === 'kimi-k3').length, 1);
+  });
+});
+
+test('getProvidedModels still emits manual entries for ids absent from the snapshot', async () => {
+  const instance = createOpencodeZenProvider(buildRecord({
+    config: {
+      baseUrl: 'https://opencode.ai/zen',
+      apiKey: 'opencode_test',
+      models: [{
+        upstreamModelId: 'future-model-unknown',
+        kind: 'chat',
+        endpoints: { openaiChatCompletions: {} },
+        display_name: 'Pinned Unknown',
+      }],
+    },
+  } as Partial<UpstreamRecord>));
+  await withMockedFetch(respond, async () => {
+    const models = await instance.instance.getProvidedModels(testFetcher);
+    // The manual entry is the operator's explicit choice: it emits ahead of
+    // the auto rows even though the auto path refuses the same id.
+    assertEquals(models[0].id, 'future-model-unknown');
+    assertEquals(models[0].display_name, 'Pinned Unknown');
+    assertEquals(models.filter(m => m.id === 'future-model-unknown').length, 1);
   });
 });
 

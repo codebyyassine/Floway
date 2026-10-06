@@ -14,8 +14,8 @@
 // names that model's row; a live model with no row carries no endpoint, and
 // the provider falls back to the chat-completions wire (see provider.ts). The
 // provider joins this static metadata against the live `/v1/models`
-// availability signal: a model id present upstream but absent here is still
-// emitted with minimal metadata.
+// availability signal: a live model id absent from the snapshot (no registry
+// metadata) is refused — filtered out, never emitted.
 
 import catalogJson from './catalog.generated.json' with { type: 'json' };
 import type { ModelPricing } from '@floway-dev/protocols/common';
@@ -69,7 +69,7 @@ const parseCatalogModel = (value: unknown): OpencodeZenCatalogModel | null => {
       if (pricing) model.pricing = pricing;
     } catch {
       // A malformed snapshot pricing row drops its pricing, not the model —
-      // availability outranks metadata completeness.
+      // the row still carries trusted registry metadata.
     }
   }
   return model;
@@ -98,11 +98,10 @@ export const opencodeZenCatalogModelForId = (id: string): OpencodeZenCatalogMode
 // Live model ids the Zen docs table wires to a path Floway cannot route
 // (https://opencode.ai/docs/zen): the gemini-* rows to `/v1/models/{id}` and
 // jev-* to `/v1/systemone`. The generator excludes them from the snapshot
-// (see catalog.generated.json `$comment`), so without this set the
-// provider's unknown-id fallback would emit them on the chat-completions
-// wire they cannot serve. Mirrors the generator's excluded set: when a
-// refresh names a new excluded id, the drift test in
-// `__tests__/catalog_test.ts` fails until this set grows with it.
+// (see catalog.generated.json `$comment`), so without this set the provider
+// would have to rely solely on the snapshot-absence refusal. Mirrors the
+// generator's excluded set: when a refresh names a new excluded id, the drift
+// test in `__tests__/catalog_test.ts` fails until this set grows with it.
 export const OPENCODE_ZEN_UNROUTABLE_MODEL_IDS: ReadonlySet<string> = new Set([
   'gemini-3.6-flash',
   'gemini-3.8-flash',
