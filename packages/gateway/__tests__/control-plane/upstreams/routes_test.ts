@@ -2761,7 +2761,7 @@ test('POST /api/upstreams/preview-models never writes the matching saved row', a
 
 test('GET /api/upstreams/blueprint round-trips a shape-complete blank for every kind', async () => {
   const { adminSession } = await setupAppTest();
-  const kinds: UpstreamProviderKind[] = ['copilot', 'custom', 'azure', 'codex', 'claude-code', 'ollama'];
+  const kinds: UpstreamProviderKind[] = ['copilot', 'custom', 'azure', 'codex', 'claude-code', 'ollama', 'opencode-go', 'opencode'];
   for (const kind of kinds) {
     const resp = await requestApp(`/api/upstreams/blueprint?kind=${kind}`, { headers: { 'x-floway-session': adminSession } });
     assertEquals(resp.status, 200);
@@ -2801,7 +2801,7 @@ test('GET /api/upstreams/blueprint serves the record a new upstream starts as wi
   // `flag_defaults` on the wire is the whole point of the blueprint;
   // assert it lands on every kind so the dashboard's "Inherit → on/off"
   // pill has data to render before Save.
-  for (const kind of ['copilot', 'custom', 'azure', 'codex', 'claude-code', 'ollama']) {
+  for (const kind of ['copilot', 'custom', 'azure', 'codex', 'claude-code', 'ollama', 'opencode-go', 'opencode']) {
     const preview = (await (await requestApp(`/api/upstreams/blueprint?kind=${kind}`, { headers: { 'x-floway-session': adminSession } })).json()) as JsonObject;
     assertEquals(typeof preview.flag_defaults['strip-billing-attribution'], 'boolean');
   }

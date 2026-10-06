@@ -64,6 +64,8 @@ const en = {
       codex: 'Codex',
       'claude-code': 'Claude Code',
       ollama: 'Ollama',
+      'opencode-go': 'OpenCode Go',
+      opencode: 'OpenCode Zen',
     },
     dashboard: {
       title: 'Dashboard',
@@ -471,6 +473,8 @@ const en = {
           codex: 'ChatGPT Plus, Pro, or Team',
           'claude-code': 'Claude Pro, Max, or Team subscription',
           ollama: 'ollama.com or self-hosted',
+          'opencode-go': 'Go or Go Plus subscription',
+          opencode: 'OpenCode Zen subscription',
         },
         models: {
           count_one: '{{count, number}} model',
@@ -490,6 +494,8 @@ const en = {
         },
         summary: {
           ollama: 'Ollama endpoint',
+          'opencode-go': 'OpenCode Go endpoint',
+          opencode: 'OpenCode Zen endpoint',
           copilot: 'GitHub Copilot account',
           noAccount: 'No account connected',
         },
@@ -861,6 +867,31 @@ const en = {
           deleteTitle: 'Delete model',
           deleteMessage: 'Delete {{name}}? This cannot be undone.',
           deleteConfirm: 'Delete model',
+          selectAll: 'Select all shown models',
+          selectNamed: 'Select {{name}}',
+          bulkSelected_one: '{{selected, number}} of {{count, number}} model selected',
+          bulkSelected_other: '{{selected, number}} of {{count, number}} models selected',
+          clearSelection: 'Clear selection',
+          bulkEnable: 'Enable',
+          bulkDisable: 'Disable',
+          bulkMoveToAuto: 'Move to auto',
+          bulkDelete: 'Delete manual models',
+          bulkAutoTitle: 'Discard manual configuration?',
+          bulkAutoMessage_one:
+              'Discard manual configuration for {{count, number}} model? It falls back to the upstream catalog.',
+          bulkAutoMessage_other:
+              'Discard manual configuration for {{count, number}} models? They fall back to the upstream catalog.',
+          bulkAutoConfirm: 'Discard and move to auto',
+          bulkDeleteTitle: 'Delete models',
+          bulkDeleteConfirm: 'Delete models',
+          bulkDeleteFallback_one: 'Delete {{count, number}} manual model? It falls back to the upstream catalog.',
+          bulkDeleteFallback_other:
+              'Delete {{count, number}} manual models? They fall back to the upstream catalog.',
+          bulkDeleteRemove_one: 'Delete {{count, number}} manual model? It disappears from this upstream.',
+          bulkDeleteRemove_other:
+              'Delete {{count, number}} manual models? They disappear from this upstream.',
+          bulkDeleteMixed:
+              'Delete {{count, number}} manual models? Those with an upstream catalog entry fall back to it; the rest disappear from this upstream.',
         },
         copilot: {
           quota: {
@@ -1014,6 +1045,26 @@ const en = {
             backgroundFailed: 'The last background refresh failed: {{message}}',
           },
         },
+        opencodeGo: {
+          baseUrlHint: 'OpenCode Go serves every model from one published gateway, and Floway fills in that address for you.',
+          apiKeyHint: 'Create a key in the OpenCode console at opencode.ai/auth after subscribing to Go or Go Plus.',
+          usage: {
+            title: 'Usage',
+            load: 'Load',
+            refresh: 'Refresh',
+            usedPercent: '{{percent, number}}% used',
+            // The probe runs behind the calls this upstream serves, so a fresh
+            // upstream has genuinely never been read -- a state of its own, not
+            // a zero.
+            empty: 'No usage observed yet. One arrives with the first request this upstream serves, or refresh to fetch one now.',
+            unreadable: 'OpenCode Go reported no usage windows in a shape this dashboard understands.',
+            backgroundFailed: 'The last background refresh failed: {{message}}',
+          },
+        },
+        opencodeZen: {
+          baseUrlHint: 'OpenCode Zen serves every model from one published gateway, and Floway fills in that address for you.',
+          apiKeyHint: 'Create a key in the OpenCode console at opencode.ai/auth.',
+        },
         oauth: {
           refresh: 'Refresh credential',
           reimport: 'Re-import credential',
@@ -1033,6 +1084,7 @@ const en = {
           models: 'One or more models have an invalid configuration.',
           copilot: 'Complete GitHub device authorization before saving.',
           credential: 'Import a credential before saving.',
+          apiKey: 'Enter an API key before saving.',
         },
         toast: {
           saving: 'Saving upstream {{name}}',

@@ -10,6 +10,7 @@ import { copilotQuota, readBuckets } from './copilot-quota';
 import { planLabel as copilotPlanLabel } from './copilot-seat';
 import { planLabel as ollamaPlanLabel } from './ollama-account';
 import { activityCostText, isZeroActivityCost, readActivityCost, readWindows } from './ollama-usage';
+import { readWindows as readOpencodeGoWindows } from './opencode-go-usage';
 import { providerLabel } from './provider-badge';
 import { quotaRingTone, WALL_CLOCK_REFRESH_MS, windowLengthLabel } from './subscription-quota';
 import type { UpstreamRecord } from '../../api/types';
@@ -230,16 +231,42 @@ const ollamaSignals = (record: Extract<UpstreamRecord, { kind: 'ollama' }>, t: T
   return signals;
 };
 
+const opencodeGoSignals = (record: Extract<UpstreamRecord, { kind: 'opencode-go' }>, t: TFunction, locale: string): UpstreamSignal[] => {
+  const probe = record.state?.usageProbe ?? null;
+  const observation = probe?.observation ?? null;
+  if (observation === null) return [];
+
+  // A spent window stays on the row beside its percentage: the red value states
+  // the block, and the number states how full the window is. It keeps the
+  // window's own length as the label rather than swapping in a remaining-time
+  // countdown -- a window label means the same thing on every row -- and the
+  // tooltip already carries the instant the window resets.
+  return readOpencodeGoWindows(observation.data).map(item => {
+    const label = windowLengthLabel(item.minutes);
+    return {
+      key: item.key,
+      percent: item.percent,
+      value: percentValue(t, item.percent),
+      label,
+      detail: meterDetail(t, label, item.percent, item.resetAt, observation.fetchedAt, locale),
+      blocked: item.blocked,
+    };
+  });
+};
+
 const upstreamSignals = (record: UpstreamRecord, t: TFunction, locale: string, now: number): UpstreamSignal[] => {
   switch (record.kind) {
-  // An operator-configured endpoint publishes no account of its own to report on.
+  // An operator-configured endpoint publishes no account of its own to report on,
+  // and Zen documents no usage endpoint, so neither has a row of readings.
   case 'custom':
   case 'azure':
+  case 'opencode':
     return [];
   case 'copilot': return copilotSignals(record, t, locale);
   case 'codex': return codexSignals(record, t, locale, now);
   case 'claude-code': return claudeCodeSignals(record, t, locale, now);
   case 'ollama': return ollamaSignals(record, t, locale);
+  case 'opencode-go': return opencodeGoSignals(record, t, locale);
   }
 };
 
@@ -251,6 +278,8 @@ const upstreamPlan = (record: UpstreamRecord): string | null => {
   switch (record.kind) {
   case 'custom':
   case 'azure':
+  case 'opencode-go':
+  case 'opencode':
     return null;
   case 'copilot': return copilotPlanLabel(record);
   case 'ollama': return ollamaPlanLabel(record);

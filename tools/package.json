@@ -8,6 +8,8 @@
   },
   "scripts": {
     "backfill-usage-pricing": "tsx src/backfill-usage-pricing/cli.ts",
+    "generate-opencode-go-catalog": "tsx src/generate-opencode-go-catalog/cli.ts",
+    "generate-opencode-zen-catalog": "tsx src/generate-opencode-zen-catalog/cli.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -18,6 +20,8 @@
     "@floway-dev/provider-codex": "workspace:*",
     "@floway-dev/provider-copilot": "workspace:*",
     "@floway-dev/provider-ollama": "workspace:*",
+    "@floway-dev/provider-opencode-go": "workspace:*",
+    "@floway-dev/provider-opencode-zen": "workspace:*",
     "jsonc-parser": "^3.3.1",
     "tsx": "^4"
   },

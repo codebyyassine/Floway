@@ -77,7 +77,7 @@ describe('upstream readout by provider', () => {
   // A rate limit and a spent window are different facts: the row states the
   // limit rather than inferring it from a percentage that can read low while it
   // holds, and states how long the wait still has to run rather than when it
-  // ends. Hours are the largest unit it uses.
+  // ends. Days are the largest unit it uses.
   it('states a Codex rate limit last, as the time it still has to run', () => {
     const rowFor = (until: string) => rowOf({
       kind: 'codex',
@@ -90,8 +90,11 @@ describe('upstream readout by provider', () => {
 
     expect(rowFor('2026-07-28T14:30:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 2h 30m');
     expect(rowFor('2026-07-28T12:45:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 45m');
-    // A day out still reads in hours, and any time left never reads as none.
-    expect(rowFor('2026-07-30T12:00:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 48h');
+    // A day out reads in days -- 24h and beyond never read as hours -- and any
+    // time left never reads as none.
+    expect(rowFor('2026-07-29T15:00:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 1d 3h');
+    expect(rowFor('2026-07-30T12:00:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 2d');
+    expect(rowFor('2026-08-27T12:00:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 30d');
     expect(rowFor('2026-07-28T12:00:01.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 1m');
   });
 

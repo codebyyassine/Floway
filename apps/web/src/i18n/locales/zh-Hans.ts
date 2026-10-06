@@ -62,6 +62,8 @@ const zhHansCN = {
       codex: 'Codex',
       'claude-code': 'Claude Code',
       ollama: 'Ollama',
+      'opencode-go': 'OpenCode Go',
+      opencode: 'OpenCode Zen',
     },
     dashboard: {
       title: 'Dashboard',
@@ -447,6 +449,8 @@ const zhHansCN = {
           codex: 'ChatGPT Plus、Pro 或 Team',
           'claude-code': 'Claude Pro、Max 或 Team 订阅',
           ollama: 'ollama.com 或自托管服务',
+          'opencode-go': 'Go 或 Go Plus 订阅',
+          opencode: 'OpenCode Zen 订阅',
         },
         models: {
           count_other: '{{count, number}} 个模型',
@@ -464,6 +468,8 @@ const zhHansCN = {
         },
         summary: {
           ollama: 'Ollama 端点',
+          'opencode-go': 'OpenCode Go 端点',
+          opencode: 'OpenCode Zen 端点',
           copilot: 'GitHub Copilot 账号',
           noAccount: '尚未连接账号',
         },
@@ -817,6 +823,22 @@ const zhHansCN = {
           deleteTitle: '删除模型',
           deleteMessage: '删除 {{name}}？此操作无法撤销。',
           deleteConfirm: '删除模型',
+          selectAll: '选择显示的全部模型',
+          selectNamed: '选择 {{name}}',
+          bulkSelected_other: '已选择 {{selected, number}} / {{count, number}} 个模型',
+          clearSelection: '清除选择',
+          bulkEnable: '启用',
+          bulkDisable: '停用',
+          bulkMoveToAuto: '移至自动',
+          bulkDelete: '删除手动模型',
+          bulkAutoTitle: '放弃手动配置？',
+          bulkAutoMessage_other: '放弃 {{count, number}} 个模型的手动配置？它们将回退到上游目录。',
+          bulkAutoConfirm: '放弃并移至自动',
+          bulkDeleteTitle: '删除模型',
+          bulkDeleteConfirm: '删除模型',
+          bulkDeleteFallback_other: '删除 {{count, number}} 个手动模型？它们将回退到上游目录。',
+          bulkDeleteRemove_other: '删除 {{count, number}} 个手动模型？它们将从此上游消失。',
+          bulkDeleteMixed: '删除 {{count, number}} 个手动模型？存在上游目录条目的将回退到该目录，其余将从此上游消失。',
         },
         copilot: {
           'quota': {
@@ -967,6 +989,23 @@ const zhHansCN = {
             backgroundFailed: '最近一次后台刷新失败：{{message}}',
           },
         },
+        opencodeGo: {
+          baseUrlHint: 'OpenCode Go 的所有模型都由同一个公开网关提供服务，该地址由 Floway 自动填写。',
+          apiKeyHint: '订阅 Go 或 Go Plus 后，在 OpenCode 控制台 opencode.ai/auth 创建密钥。',
+          usage: {
+            title: '用量',
+            load: '加载',
+            refresh: '刷新',
+            usedPercent: '已用 {{percent, number}}%',
+            empty: '尚无用量观测。此上游服务的第一个请求会带来一份，也可以点击刷新立即获取。',
+            unreadable: 'OpenCode Go 返回的用量窗口不是此面板可识别的结构。',
+            backgroundFailed: '最近一次后台刷新失败：{{message}}',
+          },
+        },
+        opencodeZen: {
+          baseUrlHint: 'OpenCode Zen 的所有模型都由同一个公开网关提供服务，该地址由 Floway 自动填写。',
+          apiKeyHint: '在 OpenCode 控制台 opencode.ai/auth 创建密钥。',
+        },
         oauth: {
           'refresh': '刷新凭据',
           reimport: '重新导入凭据',
@@ -985,6 +1024,7 @@ const zhHansCN = {
           models: '一个或多个模型配置无效。',
           copilot: '请先完成 GitHub 设备授权。',
           credential: '请先导入凭据。',
+          apiKey: '请输入 API 密钥后再保存。',
         },
         toast: {
           saving: '正在保存上游 {{name}}',

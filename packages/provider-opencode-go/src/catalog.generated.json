@@ -1,0 +1,872 @@
+{
+  "$comment": [
+    "Generated from https://models.opencode.ai/api.json (provider block `opencode-go`) joined against https://opencode.ai/zen/go/v1/models, with per-model endpoints from https://opencode.ai/docs/go.",
+    "Refresh: pnpm tools:generate-opencode-go-catalog",
+    "A model id present upstream but absent from the registry is refused (filtered out); a live model with no row in the docs table carries no endpoint."
+  ],
+  "models": [
+    {
+      "id": "minimax-m3",
+      "endpoint": "anthropicMessages",
+      "name": "MiniMax-M3",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000003",
+              "output_tokens": "0.0000012",
+              "input_cache_read_tokens": "0.00000006"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 512000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.0000006",
+              "output_tokens": "0.0000024",
+              "input_cache_read_tokens": "0.00000012"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "minimax-m2.7",
+      "endpoint": "anthropicMessages",
+      "name": "MiniMax-M2.7",
+      "source": "opencode-go",
+      "maxContextTokens": 204800,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000003",
+              "output_tokens": "0.0000012",
+              "input_cache_read_tokens": "0.00000006",
+              "input_cache_write_tokens": "0.000000375"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "kimi-k3",
+      "endpoint": "openaiChatCompletions",
+      "name": "Kimi K3",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000003",
+              "output_tokens": "0.000015",
+              "input_cache_read_tokens": "0.0000003"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "kimi-k2.7-code",
+      "endpoint": "openaiChatCompletions",
+      "name": "Kimi K2.7 Code",
+      "source": "opencode-go",
+      "maxContextTokens": 262144,
+      "maxOutputTokens": 262144,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000095",
+              "output_tokens": "0.000004",
+              "input_cache_read_tokens": "0.00000019"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "kimi-k2.6",
+      "endpoint": "openaiChatCompletions",
+      "name": "Kimi K2.6",
+      "source": "opencode-go",
+      "maxContextTokens": 262144,
+      "maxOutputTokens": 65536,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000095",
+              "output_tokens": "0.000004",
+              "input_cache_read_tokens": "0.00000016"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "longcat-2.0",
+      "endpoint": "openaiChatCompletions",
+      "name": "LongCat-2.0",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000003",
+              "output_tokens": "0.0000012",
+              "input_cache_read_tokens": "0.000000006"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "glm-5.2",
+      "endpoint": "openaiChatCompletions",
+      "name": "GLM-5.2",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000014",
+              "output_tokens": "0.0000044",
+              "input_cache_read_tokens": "0.00000026"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "glm-5.3-flash",
+      "endpoint": "openaiChatCompletions",
+      "name": "GLM-5.3-Flash",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000015",
+              "output_tokens": "0.0000005",
+              "input_cache_read_tokens": "0.00000003"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "glm-5.3",
+      "endpoint": "openaiChatCompletions",
+      "name": "GLM-5.3",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000014",
+              "output_tokens": "0.0000044",
+              "input_cache_read_tokens": "0.00000026"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "endpoint": "openaiChatCompletions",
+      "name": "DeepSeek V4 Pro (New)",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 384000,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000066",
+              "output_tokens": "0.00000198",
+              "input_cache_read_tokens": "0.000000022"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "endpoint": "openaiChatCompletions",
+      "name": "DeepSeek V4 Flash",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 384000,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000015",
+              "output_tokens": "0.0000006",
+              "input_cache_read_tokens": "0.000000003"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "deepseek-v4.1-flash",
+      "endpoint": "openaiChatCompletions",
+      "name": "DeepSeek V4.1 Flash",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 384000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000015",
+              "output_tokens": "0.0000006",
+              "input_cache_read_tokens": "0.000000003"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "deepseek-v4-flash-vision-exp",
+      "endpoint": "openaiChatCompletions",
+      "name": "DeepSeek V4 Flash Vision Exp",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 384000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000015",
+              "output_tokens": "0.0000006",
+              "input_cache_read_tokens": "0.000000003"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "qwen3.7-max",
+      "name": "Qwen3.7 Max",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 65536,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000025",
+              "output_tokens": "0.0000075",
+              "input_cache_read_tokens": "0.0000005",
+              "input_cache_write_tokens": "0.000003125"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "qwen3.8-max",
+      "endpoint": "anthropicMessages",
+      "name": "Qwen3.8 Max",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000002",
+              "output_tokens": "0.000006",
+              "input_cache_read_tokens": "0.00000025",
+              "input_cache_write_tokens": "0.0000025"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "qwen3.8-flash",
+      "endpoint": "anthropicMessages",
+      "name": "Qwen3.8 Flash",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000015",
+              "output_tokens": "0.00000047",
+              "input_cache_read_tokens": "0.000000016",
+              "input_cache_write_tokens": "0.0000002"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "qwen3.7-plus",
+      "endpoint": "anthropicMessages",
+      "name": "Qwen3.7 Plus",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 65536,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000004",
+              "output_tokens": "0.0000016",
+              "input_cache_read_tokens": "0.00000004",
+              "input_cache_write_tokens": "0.0000005"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 256000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.0000012",
+              "output_tokens": "0.0000048",
+              "input_cache_read_tokens": "0.00000012",
+              "input_cache_write_tokens": "0.0000015"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "qwen3.6-plus",
+      "name": "Qwen3.6 Plus",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 65536,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000005",
+              "output_tokens": "0.000003",
+              "input_cache_read_tokens": "0.00000005",
+              "input_cache_write_tokens": "0.000000625"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 256000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.000002",
+              "output_tokens": "0.000006",
+              "input_cache_read_tokens": "0.0000002",
+              "input_cache_write_tokens": "0.0000025"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mimo-v2.6-pro",
+      "endpoint": "openaiChatCompletions",
+      "name": "MiMo-V2.6-Pro",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000000435",
+              "output_tokens": "0.00000087",
+              "input_cache_read_tokens": "0.000000003625"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mimo-v2.6-flash",
+      "endpoint": "openaiChatCompletions",
+      "name": "MiMo-V2.6-Flash",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000014",
+              "output_tokens": "0.00000028",
+              "input_cache_read_tokens": "0.0000000028"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "longcat-2.5-preview-free",
+      "endpoint": "openaiChatCompletions",
+      "name": "LongCat 2.5 Preview Free",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0",
+              "output_tokens": "0",
+              "input_cache_read_tokens": "0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mimo-v2.5-pro",
+      "endpoint": "openaiChatCompletions",
+      "name": "MiMo V2.5 Pro",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 128000,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000000435",
+              "output_tokens": "0.00000087",
+              "input_cache_read_tokens": "0.000000003625"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mimo-v2.5",
+      "endpoint": "openaiChatCompletions",
+      "name": "MiMo V2.5",
+      "source": "opencode-go",
+      "maxContextTokens": 1000000,
+      "maxOutputTokens": 128000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000014",
+              "output_tokens": "0.00000028",
+              "input_cache_read_tokens": "0.0000000028"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "hy4-preview",
+      "endpoint": "openaiChatCompletions",
+      "name": "Hy4 preview",
+      "source": "opencode-go",
+      "maxContextTokens": 1024000,
+      "maxOutputTokens": 64000,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000000834",
+              "output_tokens": "0.000002501",
+              "input_cache_read_tokens": "0.000000042"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "hy3",
+      "endpoint": "openaiChatCompletions",
+      "name": "Hy3",
+      "source": "opencode-go",
+      "maxContextTokens": 256000,
+      "maxOutputTokens": 128000,
+      "modalities": [
+        "text"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000014",
+              "output_tokens": "0.00000058",
+              "input_cache_read_tokens": "0.000000035"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "endpoint": "openaiResponses",
+      "name": "GPT-5.6 Luna",
+      "source": "opencode-go",
+      "maxContextTokens": 1050000,
+      "maxOutputTokens": 128000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000002",
+              "output_tokens": "0.0000012",
+              "input_cache_read_tokens": "0.00000002",
+              "input_cache_write_tokens": "0.00000025"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 272000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.0000004",
+              "output_tokens": "0.0000018",
+              "input_cache_read_tokens": "0.00000004",
+              "input_cache_write_tokens": "0.0000005"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "grok-4.5",
+      "name": "Grok 4.5",
+      "source": "opencode-go",
+      "maxContextTokens": 500000,
+      "maxOutputTokens": 500000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000002",
+              "output_tokens": "0.000006",
+              "input_cache_read_tokens": "0.0000003"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 200000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.000004",
+              "output_tokens": "0.000012",
+              "input_cache_read_tokens": "0.0000006"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "grok-4.7",
+      "endpoint": "openaiResponses",
+      "name": "Grok 4.7",
+      "source": "opencode-go",
+      "maxContextTokens": 500000,
+      "maxOutputTokens": 500000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000002",
+              "output_tokens": "0.000006",
+              "input_cache_read_tokens": "0.0000005"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 200000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.000004",
+              "output_tokens": "0.000012",
+              "input_cache_read_tokens": "0.000001"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "grok-4.6",
+      "endpoint": "openaiResponses",
+      "name": "Grok 4.6",
+      "source": "opencode-go",
+      "maxContextTokens": 500000,
+      "maxOutputTokens": 500000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.000002",
+              "output_tokens": "0.000006",
+              "input_cache_read_tokens": "0.0000005"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 200000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.000004",
+              "output_tokens": "0.000012",
+              "input_cache_read_tokens": "0.000001"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "muse-spark-1.3-contributor",
+      "endpoint": "openaiResponses",
+      "name": "Muse Spark 1.3 Contributor",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000001",
+              "output_tokens": "0.0000002",
+              "input_cache_read_tokens": "0.000000002"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "muse-spark-1.2-contributor",
+      "endpoint": "openaiResponses",
+      "name": "Muse Spark 1.2 Contributor",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 131072,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000001",
+              "output_tokens": "0.0000002",
+              "input_cache_read_tokens": "0.000000002"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "gpt-6-luna",
+      "endpoint": "openaiResponses",
+      "name": "GPT-6 Luna",
+      "source": "opencode-go",
+      "maxContextTokens": 1050000,
+      "maxOutputTokens": 128000,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.0000001",
+              "output_tokens": "0.0000005",
+              "input_cache_read_tokens": "0.00000001",
+              "input_cache_write_tokens": "0.000000125"
+            }
+          },
+          {
+            "selector": {
+              "inputTokens": {
+                "operator": "gte",
+                "value": 272000
+              }
+            },
+            "rates": {
+              "input_tokens": "0.0000002",
+              "output_tokens": "0.00000075",
+              "input_cache_read_tokens": "0.00000002",
+              "input_cache_write_tokens": "0.00000025"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "space-bunny",
+      "endpoint": "openaiChatCompletions",
+      "name": "Space Bunny",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 524288,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000015",
+              "output_tokens": "0.0000006",
+              "input_cache_read_tokens": "0.00000003",
+              "input_cache_write_tokens": "0"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

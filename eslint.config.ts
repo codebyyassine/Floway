@@ -81,6 +81,8 @@ const projectList = [
   './packages/provider-copilot/tsconfig.json',
   './packages/provider-custom/tsconfig.json',
   './packages/provider-ollama/tsconfig.json',
+  './packages/provider-opencode-go/tsconfig.json',
+  './packages/provider-opencode-zen/tsconfig.json',
   './packages/proxy/tsconfig.json',
   './packages/test-utils/tsconfig.json',
   './packages/translate/tsconfig.json',

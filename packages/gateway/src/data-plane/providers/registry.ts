@@ -8,6 +8,8 @@ import { codexProviderModule } from '@floway-dev/provider-codex';
 import { copilotProviderModule } from '@floway-dev/provider-copilot';
 import { customProviderModule } from '@floway-dev/provider-custom';
 import { ollamaProviderModule } from '@floway-dev/provider-ollama';
+import { opencodeGoProviderModule } from '@floway-dev/provider-opencode-go';
+import { opencodeZenProviderModule } from '@floway-dev/provider-opencode-zen';
 
 const providersByKind: Record<UpstreamProviderKind, ProviderModule> = {
   copilot: copilotProviderModule,
@@ -16,6 +18,8 @@ const providersByKind: Record<UpstreamProviderKind, ProviderModule> = {
   codex: codexProviderModule,
   'claude-code': claudeCodeProviderModule,
   ollama: ollamaProviderModule,
+  'opencode-go': opencodeGoProviderModule,
+  opencode: opencodeZenProviderModule,
 };
 
 export type GatewayProvider = Provider & {
