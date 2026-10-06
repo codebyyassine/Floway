@@ -7,7 +7,7 @@ import {
   EditRegular,
   WarningRegular,
 } from '@fluentui/react-icons';
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 import { useSearchParams } from 'react-router';
 
@@ -29,7 +29,7 @@ import { BackNavigationButton } from '../ui/back-navigation-button';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { useDangerTextClass } from '../ui/danger';
 import { EmptyStateLine } from '../ui/empty-state';
-import { Input } from '../ui/fluent-form-controls';
+import { Checkbox, Input } from '../ui/fluent-form-controls';
 import { ContentLoadingScreen } from '../ui/loading-screen';
 import { OutcomeMessageBar } from '../ui/outcome-message-bar';
 import { RowTitleButton } from '../ui/row-title';
@@ -56,6 +56,7 @@ const {
   TableHeader,
   TableHeaderCell,
   TableRow,
+  TableSelectionCell,
   Text,
   Tooltip,
 } = fluentComponents;
@@ -230,6 +231,16 @@ export function UpstreamWorkspace({
   </section>;
 }
 
+// A bulk removal resolved at the moment the operator asks for it: the indices
+// are the current `manualModels` positions, and `fallback` counts how many of
+// them have an upstream catalog entry to fall back to -- the rest leave the
+// upstream entirely.
+interface BulkRemoval {
+  action: 'auto' | 'delete';
+  fallback: number;
+  indices: number[];
+}
+
 function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsError, modelsLoading, onModelLocatorCommit, onModelSelectionChange, onOpenModel, onRefreshModels, onViewChange, onYamlDraftChange, readOnly, record, revealValidation, selectedUpstreamModelId, view, yamlDraft }: {
   detailSection: ModelDetailTab;
   discovered: UpstreamModelConfig[];
@@ -257,9 +268,12 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
   const disabled = useWatch({ control, name: 'disabledPublicModelIds' });
   const upstreamFlags = useWatch({ control, name: 'flagOverrides' });
   const deleteDialog = useDialogInvocation<ModelRow>();
+  const bulkDialog = useDialogInvocation<BulkRemoval>();
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [pendingManualUpstreamModelId, setPendingManualUpstreamModelId] = useState<string | null>(null);
   const [pendingManualConfig, setPendingManualConfig] = useState<UpstreamModelConfig | null>(null);
   const [search, setSearch] = useState('');
+  const selectionCountId = useId();
   const { copy, outcomeFor } = useCopyToClipboard();
   const copyLabel = useCopyLabel();
   const autoFetchEnabled = record.kind !== 'custom'
@@ -287,8 +301,62 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
   };
   const activeDetailRow = selectedRow ?? pendingManualRow;
   const filtered = rows.filter(row => `${row.config.display_name ?? ''} ${publicModelId(row.config)} ${row.config.upstreamModelId}`.toLowerCase().includes(search.toLowerCase()));
+  // The bar counts and acts on what the operator can see, so a filter narrows
+  // the selection's reach without touching the set: rows that come back from
+  // behind a filter are still checked.
+  const selectableRows = filtered.filter(row => publicModelId(row.config) !== '');
+  const selectedRows = selectableRows.filter(row => selectedIds.has(publicModelId(row.config)));
+  const headerChecked = selectedRows.length > 0 && selectedRows.length === selectableRows.length
+    ? true
+    : selectedRows.length > 0 ? 'mixed' : false;
+  const selectedIdSet = new Set(selectedRows.map(row => publicModelId(row.config)));
+  const moveTargets = selectedRows.filter(row => row.source === 'manual' && row.hasAuto);
+  const deleteTargets = selectedRows.filter(row => row.manualIndex !== null);
 
-  const setEnabled = (id: string, enabled: boolean) => setValue('disabledPublicModelIds', enabled ? disabled.filter(item => item !== id) : [...new Set([...disabled, id])], { shouldDirty: true });
+  const toggleRowSelection = (id: string) => {
+    if (id === '') return;
+    setSelectedIds(previous => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleAllSelection = (select: boolean) => setSelectedIds(previous => {
+    const next = new Set(previous);
+    for (const row of selectableRows) {
+      const id = publicModelId(row.config);
+      if (select) next.add(id); else next.delete(id);
+    }
+    return next;
+  });
+
+  // The field array is compared index by index against the record, so every
+  // write filters the array the form already holds rather than rebuilding it,
+  // and a write that resolves to that same array says it is not an edit.
+  const writeDisabled = (next: string[]) => {
+    const changed = next.length !== disabled.length || next.some((id, index) => id !== disabled[index]);
+    setValue('disabledPublicModelIds', next, { shouldDirty: changed });
+  };
+  const setEnabled = (id: string, enabled: boolean) =>
+    writeDisabled(enabled ? disabled.filter(item => item !== id) : [...new Set([...disabled, id])]);
+  const bulkEnable = () => writeDisabled(disabled.filter(id => !selectedIdSet.has(id)));
+  const bulkDisable = () => writeDisabled([...disabled, ...[...selectedIdSet].filter(id => !disabled.includes(id))]);
+  const askBulkRemoval = (action: BulkRemoval['action']) => {
+    const targets = action === 'auto' ? moveTargets : deleteTargets;
+    if (targets.length === 0) return;
+    bulkDialog.open({
+      action,
+      fallback: action === 'auto' ? targets.length : targets.filter(row => row.hasAuto).length,
+      indices: targets.map(row => row.manualIndex!),
+    });
+  };
+  const confirmBulkRemoval = () => {
+    const target = bulkDialog.invocation?.value;
+    if (target === undefined) return;
+    remove(target.indices);
+    setSelectedIds(new Set());
+    bulkDialog.close();
+  };
   const addModel = () => {
     const manualIndex = manual.length;
     append({
@@ -313,6 +381,10 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
     setPendingManualUpstreamModelId(null);
     setPendingManualConfig(null);
   }
+  // The detail view is this component's own branch, so the list's selection
+  // would ride back with the operator; acting on rows nobody can see would
+  // misreport the bar's count.
+  if (view !== 'list' && selectedIds.size > 0) setSelectedIds(new Set());
 
   const setModelSource = (row: ModelRow, source: 'auto' | 'manual') => {
     if (source === row.source || readOnly) return;
@@ -340,8 +412,8 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
   const manualDeleteTarget = deleteTarget?.manualIndex == null
     ? null
     : { ...deleteTarget, manualIndex: deleteTarget.manualIndex };
-  // Every branch below returns this in the same position under a fragment, so
-  // the view switch does not reparent it: a dialog hung off a branch's own
+  // Every branch below returns this pair in the same position under a fragment,
+  // so the view switch does not reparent it: a dialog hung off a branch's own
   // root unmounts in the same commit that asks it to close, leaving the exit
   // no frames to run in.
   const deleteConfirmation = manualDeleteTarget && <ConfirmDialog
@@ -353,6 +425,31 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
     onOpenChange={open => { if (!open) deleteDialog.close(); }}
     title={t('dashboard.upstreamEditor.models.deleteTitle')}
   />;
+  const bulkTarget = bulkDialog.invocation?.value;
+  const bulkCount = bulkTarget?.indices.length ?? 0;
+  const bulkMessage = bulkTarget === undefined
+    ? ''
+    : bulkTarget.action === 'auto'
+      ? t('dashboard.upstreamEditor.models.bulkAutoMessage', { count: bulkCount })
+      : bulkTarget.fallback === bulkCount
+        ? t('dashboard.upstreamEditor.models.bulkDeleteFallback', { count: bulkCount })
+        : bulkTarget.fallback === 0
+          ? t('dashboard.upstreamEditor.models.bulkDeleteRemove', { count: bulkCount })
+          : t('dashboard.upstreamEditor.models.bulkDeleteMixed', { count: bulkCount });
+  const bulkConfirmation = bulkTarget === undefined ? null : <ConfirmDialog
+    open={bulkDialog.isOpen}
+    actionLabel={bulkTarget.action === 'auto'
+      ? t('dashboard.upstreamEditor.models.bulkAutoConfirm')
+      : t('dashboard.upstreamEditor.models.bulkDeleteConfirm')}
+    key={bulkDialog.invocation!.key}
+    message={bulkMessage}
+    onConfirm={confirmBulkRemoval}
+    onOpenChange={open => { if (!open) bulkDialog.close(); }}
+    title={bulkTarget.action === 'auto'
+      ? t('dashboard.upstreamEditor.models.bulkAutoTitle')
+      : t('dashboard.upstreamEditor.models.bulkDeleteTitle')}
+  />;
+  const confirmations = <>{deleteConfirmation}{bulkConfirmation}</>;
 
   if (view === 'yaml') {
     const baseline = yamlDraft?.baseline ?? serializeModels(manual);
@@ -383,7 +480,7 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
         </Suspense>
       </div>
       {yamlDraft?.error && <div className="px-5 py-3"><OutcomeMessageBar>{yamlDraft.error}</OutcomeMessageBar></div>}
-    </div>{deleteConfirmation}</>;
+    </div>{confirmations}</>;
   }
 
   if (view === 'detail' && activeDetailRow) return <><ModelDetail section={detailSection} row={activeDetailRow} readOnly={readOnly} revealValidation={revealValidation} onDelete={() => deleteDialog.open(activeDetailRow)} onSourceChange={source => setModelSource(activeDetailRow, source)} onUpstreamModelIdCommit={onModelLocatorCommit} onChange={value => {
@@ -392,7 +489,7 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
       shouldDirty: true,
       shouldTouch: true,
     });
-  }} record={record} upstreamFlags={upstreamFlags} />{deleteConfirmation}</>;
+  }} record={record} upstreamFlags={upstreamFlags} />{confirmations}</>;
 
   return <><div className="grid grid-cols-[minmax(0,1fr)] gap-4 min-w-0">
     <SectionHeader
@@ -426,13 +523,31 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
         </pre>}
       </div>
     </OutcomeMessageBar>}
+    {selectedRows.length > 0 && <div aria-labelledby={selectionCountId} className="flex flex-wrap items-center gap-3 rounded-[var(--winui-control-corner-radius)] border border-solid border-fui-stroke1 bg-fui-bg2 px-3 py-2" role="group">
+      <Text id={selectionCountId} role="status">
+        {t('dashboard.upstreamEditor.models.bulkSelected', { selected: selectedRows.length, count: selectableRows.length })}
+      </Text>
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <Button size="small" onClick={bulkEnable}>{t('dashboard.upstreamEditor.models.bulkEnable')}</Button>
+        <Button size="small" onClick={bulkDisable}>{t('dashboard.upstreamEditor.models.bulkDisable')}</Button>
+        {!readOnly && moveTargets.length > 0 && <Button size="small" onClick={() => askBulkRemoval('auto')}>{t('dashboard.upstreamEditor.models.bulkMoveToAuto')}</Button>}
+        {!readOnly && deleteTargets.length > 0 && <Button size="small" onClick={() => askBulkRemoval('delete')}>{t('dashboard.upstreamEditor.models.bulkDelete')}</Button>}
+        <Button appearance="transparent" size="small" onClick={() => setSelectedIds(new Set())}>{t('dashboard.upstreamEditor.models.clearSelection')}</Button>
+      </div>
+    </div>}
     <Input value={search} onChange={(_, data) => setSearch(data.value)} placeholder={t('dashboard.upstreamEditor.models.search')} />
     <ScrollArea axes="horizontal" className="min-w-0">
-      <Table aria-label={t('dashboard.upstreamEditor.models.title')} className="w-full min-w-[664px]">
-        <TableColumns widths={['80px', '25%', '88px', null, '80px', TABLE_ACTIONS_WIDTH]} />
-        <TableHeader><TableRow><TableCentredHeader>{t('dashboard.upstreamEditor.models.enabled')}</TableCentredHeader><TableHeaderCell>{t('dashboard.upstreamEditor.models.name')}</TableHeaderCell><TableCentredHeader>{t('dashboard.upstreamEditor.models.kind')}</TableCentredHeader><TableHeaderCell>{t('dashboard.upstreamEditor.models.id')}</TableHeaderCell><TableCentredHeader>{t('dashboard.upstreamEditor.models.source')}</TableCentredHeader><TableTrailingHeader>{t('dashboard.upstreamEditor.models.actions')}</TableTrailingHeader></TableRow></TableHeader>
-        <TableBody>{filtered.length === 0 ? <TableRow><TableCell colSpan={6}><EmptyStateLine>{t('dashboard.upstreamEditor.models.noMatches')}</EmptyStateLine></TableCell></TableRow> : filtered.map(row => {
+      <Table aria-label={t('dashboard.upstreamEditor.models.title')} className="w-full min-w-[708px]">
+        {/* The selection cell carries its own 44 from Fluent, so the column
+            states the same figure: the colgroup and the cell would otherwise
+            size the track apart.
+            https://github.com/microsoft/fluentui/blob/6dee27b023a2d989f032b4adacb2135d336a67fb/packages/react-components/react-table/library/src/components/TableSelectionCell/useTableSelectionCellStyles.styles.ts#L9
+            https://github.com/microsoft/fluentui/blob/6dee27b023a2d989f032b4adacb2135d336a67fb/packages/react-components/react-table/library/src/components/TableSelectionCell/useTableSelectionCellStyles.styles.ts#L20 */}
+        <TableColumns widths={['44px', '80px', '25%', '88px', null, '80px', TABLE_ACTIONS_WIDTH]} />
+        <TableHeader><TableRow><TableCentredHeader><Checkbox aria-label={t('dashboard.upstreamEditor.models.selectAll')} checked={headerChecked} disabled={selectableRows.length === 0} onChange={(_, data) => toggleAllSelection(data.checked !== false)} /></TableCentredHeader><TableCentredHeader>{t('dashboard.upstreamEditor.models.enabled')}</TableCentredHeader><TableHeaderCell>{t('dashboard.upstreamEditor.models.name')}</TableHeaderCell><TableCentredHeader>{t('dashboard.upstreamEditor.models.kind')}</TableCentredHeader><TableHeaderCell>{t('dashboard.upstreamEditor.models.id')}</TableHeaderCell><TableCentredHeader>{t('dashboard.upstreamEditor.models.source')}</TableCentredHeader><TableTrailingHeader>{t('dashboard.upstreamEditor.models.actions')}</TableTrailingHeader></TableRow></TableHeader>
+        <TableBody>{filtered.length === 0 ? <TableRow><TableCell colSpan={7}><EmptyStateLine>{t('dashboard.upstreamEditor.models.noMatches')}</EmptyStateLine></TableCell></TableRow> : filtered.map(row => {
           const id = publicModelId(row.config); return <TableRow className="h-14" key={row.key}>
+            <TableSelectionCell checked={selectedIds.has(id)} checkboxIndicator={{ 'aria-label': t('dashboard.upstreamEditor.models.selectNamed', { name: row.config.display_name ?? id }), disabled: id === '', onChange: () => toggleRowSelection(id) }} />
             <TableCentredCell><Switch aria-label={t('dashboard.upstreamEditor.models.enabledFor', { name: row.config.display_name ?? id })} checked={!disabled.includes(id)} onChange={(_, data) => setEnabled(id, data.checked)} /></TableCentredCell>
             <TableCell className="overflow-hidden">
               <TruncationTooltip content={row.config.display_name ?? id} relationship="label">
@@ -449,7 +564,7 @@ function ModelsWorkspace({ detailSection, discovered, modelSelection, modelsErro
         })}</TableBody>
       </Table>
     </ScrollArea>
-  </div>{deleteConfirmation}</>;
+  </div>{confirmations}</>;
 }
 
 function ModelsCacheStatus({ cache }: { cache: UpstreamRecord['modelsCache'] }) {

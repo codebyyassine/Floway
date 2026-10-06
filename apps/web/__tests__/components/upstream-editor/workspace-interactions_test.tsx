@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { forwardRef, useState } from 'react';
 import type { PropsWithChildren } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +12,7 @@ import { valuesFromRecord } from '../../../src/components/upstream-editor/data';
 import { UpstreamWorkspace, type ModelsYamlDraft } from '../../../src/components/upstream-editor/workspace';
 import { MODEL_ERROR_EDITOR_LENGTH, modelErrorExcerpt } from '../../../src/components/upstreams/model-error';
 import { i18n } from '../../../src/i18n';
+import { winuiCheckedAttribute } from '../../../src/winui/appearance';
 import { upstreamRecord } from '../../api/upstream-fixture';
 import { renderInApp } from '../../render';
 import type { UpstreamChatModelConfig, UpstreamModelConfig } from '@floway-dev/provider/model-config';
@@ -53,9 +54,11 @@ const record = upstreamRecord('up_test', {
 });
 if (record.kind !== 'custom') throw new Error('test fixture must be a custom upstream');
 
-function Harness({ discovered = [], modelsError = null, source = record }: { discovered?: UpstreamModelConfig[]; modelsError?: ModelListingFailure | null; source?: UpstreamRecord }) {
+function Harness({ discovered = [], modelsError = null, probe = false, source = record }: { discovered?: UpstreamModelConfig[]; modelsError?: ModelListingFailure | null; probe?: boolean; source?: UpstreamRecord }) {
   const form = useForm<UpstreamEditorValues>({ defaultValues: valuesFromRecord(source) });
   const [modelsYamlDraft, setModelsYamlDraft] = useState<ModelsYamlDraft | null>(null);
+  const watchedDisabled = useWatch({ control: form.control, name: 'disabledPublicModelIds' });
+  const watchedManual = useWatch({ control: form.control, name: 'manualModels' });
   return (
     // The workspace reads which tab and which model it is on out of the search,
     // so it needs a router to read one from.
@@ -70,6 +73,11 @@ function Harness({ discovered = [], modelsError = null, source = record }: { dis
           onRefreshModels={vi.fn()}
           record={source}
         />
+        {probe && <output data-testid="form-probe">{JSON.stringify({
+          dirty: form.formState.isDirty,
+          disabled: watchedDisabled,
+          manual: watchedManual.map(item => item.upstreamModelId),
+        })}</output>}
       </FormProvider>
     </MemoryRouter>
   );
@@ -85,6 +93,21 @@ const models = (key: string) => i18n.t(`dashboard.upstreamEditor.models.${key}`)
 // trimmed, so the stem is matched without its trailing separator.
 const deleteCommandStem = i18n.t('dashboard.upstreamEditor.models.deleteNamed', { name: '\u0000' }).split('\u0000')[0]!.trimEnd();
 const deleteCommands = () => screen.getAllByLabelText(new RegExp(`^${deleteCommandStem}`));
+
+const selectNamed = (name: string) => i18n.t('dashboard.upstreamEditor.models.selectNamed', { name });
+const selectAllBox = () => screen.getByRole<HTMLInputElement>('checkbox', { name: models('selectAll') });
+const rowBox = (name: string) => screen.getByRole<HTMLInputElement>('checkbox', { name: selectNamed(name) });
+const selectionCount = (selected: number, count: number) =>
+  screen.getByText(i18n.t('dashboard.upstreamEditor.models.bulkSelected', { count, selected }));
+const enabledSwitch = (name: string) =>
+  screen.getByRole<HTMLInputElement>('switch', { name: i18n.t('dashboard.upstreamEditor.models.enabledFor', { name }) });
+// The bulk actions write through the form rather than into local state, so what
+// they did is read back off the form the harness holds.
+const formState = () => JSON.parse(screen.getByTestId('form-probe').textContent ?? '{}') as {
+  dirty: boolean;
+  disabled: string[];
+  manual: string[];
+};
 
 describe('upstream model workspace field-array transitions', () => {
   const detailLabel = models('imageDetailOriginal');
@@ -293,6 +316,108 @@ describe('upstream model workspace field-array transitions', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: models('editWithUi') }));
     await waitFor(() => expect(deleteCommands()).toHaveLength(1));
+  });
+});
+
+describe('upstream model bulk selection', () => {
+  it('selects only the rows a search shows and reports a partial selection', () => {
+    renderInApp(<Harness probe />);
+    const search = screen.getByPlaceholderText(models('search'));
+
+    fireEvent.change(search, { target: { value: 'model-a' } });
+    expect(screen.queryByRole('checkbox', { name: selectNamed('model-b') })).toBe(null);
+
+    fireEvent.click(selectAllBox());
+    expect(rowBox('model-a').checked).toBe(true);
+    expect(selectAllBox().checked).toBe(true);
+    expect(selectionCount(1, 1)).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: '' } });
+    expect(rowBox('model-a').checked).toBe(true);
+    expect(rowBox('model-b').checked).toBe(false);
+    expect(selectAllBox().checked).toBe(false);
+    expect(selectAllBox().indeterminate).toBe(true);
+    expect(selectAllBox().getAttribute(winuiCheckedAttribute)).toBe('mixed');
+    expect(selectionCount(1, 2)).toBeTruthy();
+  });
+
+  it('writes a bulk enable and disable through the form', () => {
+    renderInApp(<Harness probe />);
+
+    fireEvent.click(rowBox('model-a'));
+    fireEvent.click(rowBox('model-b'));
+    expect(selectionCount(2, 2)).toBeTruthy();
+
+    // Enabling rows that are already enabled is not an edit.
+    fireEvent.click(screen.getByRole('button', { name: models('bulkEnable') }));
+    expect(formState()).toEqual({ dirty: false, disabled: [], manual: ['model-a', 'model-b'] });
+
+    fireEvent.click(screen.getByRole('button', { name: models('bulkDisable') }));
+    expect(formState()).toEqual({ dirty: true, disabled: ['model-a', 'model-b'], manual: ['model-a', 'model-b'] });
+    expect(enabledSwitch('model-a').checked).toBe(false);
+    expect(enabledSwitch('model-b').checked).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: models('bulkEnable') }));
+    expect(formState()).toEqual({ dirty: false, disabled: [], manual: ['model-a', 'model-b'] });
+    expect(enabledSwitch('model-a').checked).toBe(true);
+    expect(enabledSwitch('model-b').checked).toBe(true);
+  });
+
+  it('confirms before discarding manual configuration in bulk', async () => {
+    const withCatalog: UpstreamRecord = { ...record, config: { ...record.config, modelsFetch: { enabled: true } } };
+    renderInApp(<Harness discovered={[model('model-a'), model('model-b')]} probe source={withCatalog} />);
+
+    fireEvent.click(rowBox('model-a'));
+    fireEvent.click(screen.getByRole('button', { name: models('bulkMoveToAuto') }));
+    expect(formState().manual).toEqual(['model-a', 'model-b']);
+    expect(screen.getByText(i18n.t('dashboard.upstreamEditor.models.bulkAutoMessage', { count: 1 }))).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole('button', { name: models('bulkAutoConfirm') }));
+    await waitFor(() => expect(formState().manual).toEqual(['model-b']));
+    // The removal is destructive, so the rows it left are no longer selected.
+    expect(screen.queryByText(i18n.t('dashboard.upstreamEditor.models.bulkSelected', { count: 2, selected: 1 }))).toBe(null);
+  });
+
+  it('confirms before deleting manual models in bulk', async () => {
+    renderInApp(<Harness probe />);
+
+    fireEvent.click(rowBox('model-a'));
+    fireEvent.click(rowBox('model-b'));
+    fireEvent.click(screen.getByRole('button', { name: models('bulkDelete') }));
+    expect(formState().manual).toEqual(['model-a', 'model-b']);
+    expect(screen.getByText(i18n.t('dashboard.upstreamEditor.models.bulkDeleteRemove', { count: 2 }))).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole('button', { name: models('bulkDeleteConfirm') }));
+    await waitFor(() => expect(formState().manual).toEqual([]));
+  });
+
+  // A removal that skips rows proves the indices are resolved against the array
+  // as it stands. Removing them one at a time in ascending order would take
+  // model-c here, because deleting model-a first shifts it down to index 1.
+  it('deletes exactly the selected rows when the selection has gaps', async () => {
+    const four = upstreamRecord('up_test', {
+      name: 'Test',
+      kind: 'custom',
+      config: {
+        baseUrl: 'https://example.com',
+        authStyle: 'bearer',
+        apiKey: '',
+        endpoints: { openaiResponses: {} },
+        ingressHeadersRules: [],
+        modelsFetch: { enabled: false },
+        models: [model('model-a'), model('model-b'), model('model-c'), model('model-d')],
+      },
+      state: null,
+    });
+    renderInApp(<Harness probe source={four} />);
+
+    fireEvent.click(rowBox('model-a'));
+    fireEvent.click(rowBox('model-c'));
+    expect(selectionCount(2, 4)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: models('bulkDelete') }));
+    fireEvent.click(await screen.findByRole('button', { name: models('bulkDeleteConfirm') }));
+    await waitFor(() => expect(formState().manual).toEqual(['model-b', 'model-d']));
   });
 });
 

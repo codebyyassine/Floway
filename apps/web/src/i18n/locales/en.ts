@@ -864,6 +864,31 @@ const en = {
           deleteTitle: 'Delete model',
           deleteMessage: 'Delete {{name}}? This cannot be undone.',
           deleteConfirm: 'Delete model',
+          selectAll: 'Select all shown models',
+          selectNamed: 'Select {{name}}',
+          bulkSelected_one: '{{selected, number}} of {{count, number}} model selected',
+          bulkSelected_other: '{{selected, number}} of {{count, number}} models selected',
+          clearSelection: 'Clear selection',
+          bulkEnable: 'Enable',
+          bulkDisable: 'Disable',
+          bulkMoveToAuto: 'Move to auto',
+          bulkDelete: 'Delete manual models',
+          bulkAutoTitle: 'Discard manual configuration?',
+          bulkAutoMessage_one:
+              'Discard manual configuration for {{count, number}} model? It falls back to the upstream catalog.',
+          bulkAutoMessage_other:
+              'Discard manual configuration for {{count, number}} models? They fall back to the upstream catalog.',
+          bulkAutoConfirm: 'Discard and move to auto',
+          bulkDeleteTitle: 'Delete models',
+          bulkDeleteConfirm: 'Delete models',
+          bulkDeleteFallback_one: 'Delete {{count, number}} manual model? It falls back to the upstream catalog.',
+          bulkDeleteFallback_other:
+              'Delete {{count, number}} manual models? They fall back to the upstream catalog.',
+          bulkDeleteRemove_one: 'Delete {{count, number}} manual model? It disappears from this upstream.',
+          bulkDeleteRemove_other:
+              'Delete {{count, number}} manual models? They disappear from this upstream.',
+          bulkDeleteMixed:
+              'Delete {{count, number}} manual models? Those with an upstream catalog entry fall back to it; the rest disappear from this upstream.',
         },
         copilot: {
           quota: {
