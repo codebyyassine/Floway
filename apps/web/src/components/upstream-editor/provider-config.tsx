@@ -19,6 +19,7 @@ import { CHAT_ENDPOINT_KEYS, endpointOptionsFor, PATH_OVERRIDE_PATHS } from './e
 import { useMonoLabelClass } from './mono-label';
 import { OAuthCallbackImport } from './oauth-callback-import';
 import { OllamaUsageCard } from './ollama-usage-card';
+import { OpencodeGoUsageCard } from './opencode-go-usage-card';
 import { clearPkce } from './pkce';
 import { EditorSection } from './section';
 import { api, callApi } from '../../api/client';
@@ -252,11 +253,19 @@ function OllamaConfig({ record }: { record: Extract<UpstreamRecord, { kind: 'oll
 function OpencodeGoConfig({ record }: { record: Extract<UpstreamRecord, { kind: 'opencode-go' }> }) {
   const { t } = useTranslation();
   const { control } = useFormContext<ValuesForKind<'opencode-go'>>();
+  const values = useWatch<UpstreamEditorValues>() as UpstreamEditorValues;
+  const config = values.config as typeof record.config;
+
+  // The card reads usage, which the gateway refuses without a credential. The
+  // stored key answers for a saved upstream -- the form blanks the secret field
+  // and keeps it -- and the typed one lets a new key be tried before saving.
+  const keySet = record.config.apiKeySet === true || Boolean(record.config.apiKey) || Boolean(config.apiKey);
   return <div className="grid gap-4">
     <Field hint={t('dashboard.upstreamEditor.opencodeGo.baseUrlHint')} label={t('dashboard.upstreamEditor.fields.baseUrl')}>
       <Controller control={control} name="config.baseUrl" render={({ field }) => <Input className="font-mono" name={field.name} onBlur={field.onBlur} onChange={(_, data) => field.onChange(data.value)} readOnly ref={field.ref} value={field.value} />} />
     </Field>
     <SecretField hint={t('dashboard.upstreamEditor.opencodeGo.apiKeyHint')} secretSet={record.config.apiKeySet === true || Boolean(record.config.apiKey)} />
+    {keySet && <OpencodeGoUsageCard record={record} probeRecord={previewRecord(record, values)} />}
   </div>;
 }
 

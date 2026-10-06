@@ -1020,6 +1020,18 @@ const en = {
         opencodeGo: {
           baseUrlHint: 'OpenCode Go serves every model from one published gateway, and Floway fills in that address for you.',
           apiKeyHint: 'Create a key in the OpenCode console at opencode.ai/auth after subscribing to Go or Go Plus.',
+          usage: {
+            title: 'Usage',
+            load: 'Load',
+            refresh: 'Refresh',
+            usedPercent: '{{percent, number}}% used',
+            // The probe runs behind the calls this upstream serves, so a fresh
+            // upstream has genuinely never been read -- a state of its own, not
+            // a zero.
+            empty: 'No usage observed yet. One arrives with the first request this upstream serves, or refresh to fetch one now.',
+            unreadable: 'OpenCode Go reported no usage windows in a shape this dashboard understands.',
+            backgroundFailed: 'The last background refresh failed: {{message}}',
+          },
         },
         oauth: {
           refresh: 'Refresh credential',

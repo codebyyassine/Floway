@@ -973,6 +973,15 @@ const zhHansCN = {
         opencodeGo: {
           baseUrlHint: 'OpenCode Go 的所有模型都由同一个公开网关提供服务，该地址由 Floway 自动填写。',
           apiKeyHint: '订阅 Go 或 Go Plus 后，在 OpenCode 控制台 opencode.ai/auth 创建密钥。',
+          usage: {
+            title: '用量',
+            load: '加载',
+            refresh: '刷新',
+            usedPercent: '已用 {{percent, number}}%',
+            empty: '尚无用量观测。此上游服务的第一个请求会带来一份，也可以点击刷新立即获取。',
+            unreadable: 'OpenCode Go 返回的用量窗口不是此面板可识别的结构。',
+            backgroundFailed: '最近一次后台刷新失败：{{message}}',
+          },
         },
         oauth: {
           'refresh': '刷新凭据',

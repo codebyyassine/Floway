@@ -46,4 +46,23 @@ describe('OpenCode Go provider form', () => {
     expect(screen.getByText(i18n.t('dashboard.upstreamEditor.secretKeep'))).not.toBeNull();
     expect(screen.queryByText(hint('apiKeyHint'))).toBeNull();
   });
+
+  // A read the gateway would refuse is no affordance, so the card waits for the
+  // credential -- and without one the section says nothing about usage at all
+  // rather than offering a press that cannot work.
+  it('offers no usage read before a key exists', async () => {
+    renderInApp(<ProviderConfigHarness record={record({ baseUrl: ADDRESS, models: [] })} />);
+    await settle();
+
+    expect(screen.queryByRole('button', { name: hint('usage.load') })).toBeNull();
+    expect(screen.queryByText(hint('usage.empty'))).toBeNull();
+  });
+
+  it('offers the usage read as soon as a key is set', async () => {
+    renderInApp(<ProviderConfigHarness record={record({ baseUrl: ADDRESS, apiKeySet: true, models: [] })} />);
+    await settle();
+
+    expect(screen.getByRole('button', { name: hint('usage.load') })).not.toBeNull();
+    expect(screen.getByText(hint('usage.empty'))).not.toBeNull();
+  });
 });
