@@ -27,6 +27,7 @@ const providerLabels: Record<UpstreamProviderKind, string> = {
   'claude-code': 'Claude Code',
   ollama: 'Ollama',
   'opencode-go': 'OpenCode Go',
+  opencode: 'OpenCode Zen',
 };
 
 const useStyles = makeStyles({
@@ -98,7 +99,7 @@ export function ProviderBadge({ label, title, to, upstream }: {
 // unquoted `url(data:image/svg+xml,<svg …>)` is not a valid CSS value — the
 // mask-image declaration is dropped and the mask box paints as a solid block.
 // https://github.com/vitejs/vite/blob/5e7fe129a4dde4f41934083b25e490059985f4e6/docs/guide/assets.md#explicit-url-imports
-const providerIconUrls: Record<Exclude<UpstreamProviderKind, 'custom' | 'opencode-go'>, string> = {
+const providerIconUrls: Record<Exclude<UpstreamProviderKind, 'custom' | 'opencode-go' | 'opencode'>, string> = {
   azure: azureIconUrl,
   copilot: githubCopilotIconUrl,
   // Codex is the ChatGPT subscription, so it wears OpenAI's mark.
@@ -109,7 +110,7 @@ const providerIconUrls: Record<Exclude<UpstreamProviderKind, 'custom' | 'opencod
 
 // The source SVGs share a 24×24 viewBox but not optical weight; these scales
 // normalize each silhouette to ServerRegular's 16px height inside a 20px box.
-const providerIconMaskSizes: Record<Exclude<UpstreamProviderKind, 'custom' | 'opencode-go'>, string> = {
+const providerIconMaskSizes: Record<Exclude<UpstreamProviderKind, 'custom' | 'opencode-go' | 'opencode'>, string> = {
   azure: '85% 85%',
   copilot: '100% 100%',
   codex: '80% 80%',
@@ -126,9 +127,9 @@ export function ProviderIcon({
 }) {
   const styles = useStyles();
   const baseClassName = `block flex-none ${className}`;
-  // OpenCode Go ships no brand asset yet, so it wears the generic glyph rather
-  // than another product's mark.
-  if (kind === 'custom' || kind === 'opencode-go') return <ServerRegular className={baseClassName} />;
+  // OpenCode Go and OpenCode Zen ship no brand asset yet, so they wear the
+  // generic glyph rather than another product's mark.
+  if (kind === 'custom' || kind === 'opencode-go' || kind === 'opencode') return <ServerRegular className={baseClassName} />;
   return (
     <MaskedIcon
       className={`${className} ${styles.maskedGlyph}`}

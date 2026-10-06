@@ -103,7 +103,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
     // parser; this one accepts it and would then serve 401s with no probe in
     // the list to say so. A copy carries the source's key in the record even
     // though its form field is blank, so the stored half answers for it.
-    if (record.kind === 'opencode-go' && !String(values.config.apiKey ?? '').trim() && !record.config.apiKey) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.validation.apiKey', path: ['config'] });
+    if ((record.kind === 'opencode-go' || record.kind === 'opencode') && !String(values.config.apiKey ?? '').trim() && !record.config.apiKey) ctx.addIssue({ code: 'custom', message: 'dashboard.upstreamEditor.validation.apiKey', path: ['config'] });
   }), [data.mode, record]);
   const form = useForm<UpstreamEditorValues>({
     defaultValues: initialValues,
@@ -158,7 +158,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
     ? { ...formState.dirtyFields, config: false }
     : formState.dirtyFields;
   const discoveryInputsDirty = hasUnsavedDiscoveryInputs(discoveryDirtyFields)
-    || ((record.kind === 'ollama' || record.kind === 'opencode-go') && manualModelsDirty);
+    || ((record.kind === 'ollama' || record.kind === 'opencode-go' || record.kind === 'opencode') && manualModelsDirty);
   const oauth = record.kind === 'copilot' || record.kind === 'codex' || record.kind === 'claude-code';
   const fetchDialog = useDialogInvocation<void>();
   // Save resets the form and record in one commit. The immediately following
@@ -239,7 +239,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
       setModelsYamlDraft(null);
     }
     const invalidatesPendingFetch = hasUnsavedDiscoveryInputs(formState.dirtyFields) || manualModelsDirty || yamlModelsChanged;
-    const invalidatesDiscovered = discoveryInputsDirty || ((record.kind === 'ollama' || record.kind === 'opencode-go') && yamlModelsChanged);
+    const invalidatesDiscovered = discoveryInputsDirty || ((record.kind === 'ollama' || record.kind === 'opencode-go' || record.kind === 'opencode') && yamlModelsChanged);
     let savedRecord: UpstreamRecord | null = null;
     await handleSubmit(async values => {
       setSaving(true); setSaveError(null);

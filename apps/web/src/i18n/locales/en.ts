@@ -65,6 +65,7 @@ const en = {
       'claude-code': 'Claude Code',
       ollama: 'Ollama',
       'opencode-go': 'OpenCode Go',
+      opencode: 'OpenCode Zen',
     },
     dashboard: {
       title: 'Dashboard',
@@ -473,6 +474,7 @@ const en = {
           'claude-code': 'Claude Pro, Max, or Team subscription',
           ollama: 'ollama.com or self-hosted',
           'opencode-go': 'Go or Go Plus subscription',
+          opencode: 'OpenCode Zen subscription',
         },
         models: {
           count_one: '{{count, number}} model',
@@ -493,6 +495,7 @@ const en = {
         summary: {
           ollama: 'Ollama endpoint',
           'opencode-go': 'OpenCode Go endpoint',
+          opencode: 'OpenCode Zen endpoint',
           copilot: 'GitHub Copilot account',
           noAccount: 'No account connected',
         },
@@ -1057,6 +1060,10 @@ const en = {
             unreadable: 'OpenCode Go reported no usage windows in a shape this dashboard understands.',
             backgroundFailed: 'The last background refresh failed: {{message}}',
           },
+        },
+        opencodeZen: {
+          baseUrlHint: 'OpenCode Zen serves every model from one published gateway, and Floway fills in that address for you.',
+          apiKeyHint: 'Create a key in the OpenCode console at opencode.ai/auth.',
         },
         oauth: {
           refresh: 'Refresh credential',

@@ -77,6 +77,7 @@ export function ProviderConfigSection({
   if (record.kind === 'azure') return <AzureConfig record={record} />;
   if (record.kind === 'ollama') return <OllamaConfig record={record} />;
   if (record.kind === 'opencode-go') return <OpencodeGoConfig record={record} />;
+  if (record.kind === 'opencode') return <OpencodeZenConfig record={record} />;
   if (record.kind === 'copilot') return <CopilotConfig record={record} onPatch={onPatch} />;
   return <OAuthConfig record={record} onPatch={onPatch} />;
 }
@@ -269,9 +270,27 @@ function OpencodeGoConfig({ record }: { record: Extract<UpstreamRecord, { kind: 
   </div>;
 }
 
+// OpenCode Zen publishes one gateway address (https://opencode.ai/docs/zen)
+// and no documented self-hosted or proxy deployment, so the address is
+// Floway's to state rather than a value the operator could mistype. The field
+// still holds the form's value: it is what Save sends.
+//
+// Unlike its Go sibling this form carries no usage card: Zen documents no
+// usage endpoint, so there is nothing to read.
+function OpencodeZenConfig({ record }: { record: Extract<UpstreamRecord, { kind: 'opencode' }> }) {
+  const { t } = useTranslation();
+  const { control } = useFormContext<ValuesForKind<'opencode'>>();
+  return <div className="grid gap-4">
+    <Field hint={t('dashboard.upstreamEditor.opencodeZen.baseUrlHint')} label={t('dashboard.upstreamEditor.fields.baseUrl')}>
+      <Controller control={control} name="config.baseUrl" render={({ field }) => <Input className="font-mono" name={field.name} onBlur={field.onBlur} onChange={(_, data) => field.onChange(data.value)} readOnly ref={field.ref} value={field.value} />} />
+    </Field>
+    <SecretField hint={t('dashboard.upstreamEditor.opencodeZen.apiKeyHint')} secretSet={record.config.apiKeySet === true || Boolean(record.config.apiKey)} />
+  </div>;
+}
+
 function SecretField({ hint, optional, secretSet }: { hint?: string; optional?: boolean; secretSet: boolean }) {
   const { t } = useTranslation();
-  const { control } = useFormContext<ValuesForKind<'custom' | 'azure' | 'ollama' | 'opencode-go'>>();
+  const { control } = useFormContext<ValuesForKind<'custom' | 'azure' | 'ollama' | 'opencode-go' | 'opencode'>>();
   const [visible, setVisible] = useState(false);
   return <Field
     label={`${t('dashboard.upstreamEditor.fields.apiKey')}${optional ? ` (${t('dashboard.upstreamEditor.optional')})` : ''}`}

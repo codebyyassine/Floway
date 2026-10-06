@@ -72,6 +72,7 @@
 | Package | `packages/provider-custom` | Integrates OpenAI-compatible providers. |
 | Package | `packages/provider-ollama` | Integrates Ollama. |
 | Package | `packages/provider-opencode-go` | Integrates the OpenCode Go subscriptions. |
+| Package | `packages/provider-opencode-zen` | Integrates OpenCode Zen subscriptions. |
 | Package | `packages/proxy` | Routes traffic through configured proxies. |
 | Package | `packages/test-utils` | Provides shared test infrastructure. |
 | Package | `packages/translate` | Translates between protocol contracts. |

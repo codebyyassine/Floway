@@ -7,6 +7,7 @@ import { pricingForCodexModelKey } from '@floway-dev/provider-codex';
 import { pricingForCopilotPublicModelId } from '@floway-dev/provider-copilot';
 import { pricingForOllamaModelKey } from '@floway-dev/provider-ollama';
 import { pricingForOpencodeGoModelKey } from '@floway-dev/provider-opencode-go';
+import { pricingForOpencodeZenModelKey } from '@floway-dev/provider-opencode-zen';
 
 const CATALOG_HARD_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -105,6 +106,9 @@ export const resolveUsagePricing = (
   case 'opencode-go':
     if (manual?.pricing !== undefined) return staticResolution(manual.pricing, `upstream:${upstream.id}:config`);
     return staticResolution(pricingForOpencodeGoModelKey(identity.modelKey), 'provider:opencode-go');
+  case 'opencode':
+    if (manual?.pricing !== undefined) return staticResolution(manual.pricing, `upstream:${upstream.id}:config`);
+    return staticResolution(pricingForOpencodeZenModelKey(identity.modelKey), 'provider:opencode');
   case 'copilot':
     return staticResolution(pricingForCopilotPublicModelId(identity.model), 'provider:copilot');
   case 'codex':

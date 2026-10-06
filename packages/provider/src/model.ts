@@ -3,7 +3,7 @@ import type { UpstreamChatModelConfig, UpstreamModelConfig } from './model-confi
 import type { ModelPrefixConfig } from './model-prefix.ts';
 import type { AliasSelection, AliasTarget, ModelKind, ModelEndpoints, ModelPricing, OpaqueBlobCompatibilityScope, PublicModelLimits, RerankTarget } from '@floway-dev/protocols/common';
 
-export const ALL_PROVIDER_KINDS = ['copilot', 'custom', 'azure', 'codex', 'claude-code', 'ollama', 'opencode-go'] as const;
+export const ALL_PROVIDER_KINDS = ['copilot', 'custom', 'azure', 'codex', 'claude-code', 'ollama', 'opencode-go', 'opencode'] as const;
 export type UpstreamProviderKind = typeof ALL_PROVIDER_KINDS[number];
 
 // Runtime narrow of an unvalidated string to `UpstreamProviderKind`. The

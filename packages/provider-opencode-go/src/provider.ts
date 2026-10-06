@@ -12,16 +12,16 @@
 // metadata (availability outranks metadata completeness) on the default
 // chat-completions wire.
 //
-// Pricing prefers the hand-authored vendor table (see pricing.ts) and falls
+// Pricing prefers the generated registry table (see pricing.ts) and falls
 // back to the snapshot's own pricing when the table has no entry.
-// Reasoning-effort presets come from the hand-authored capabilities table
+// Reasoning presets come from the generated capabilities table
 // (see capabilities.ts); input modalities come from the snapshot.
 //
 // Manual config.models[] entries are emitted ahead of the auto-fetched
 // catalog, and an auto row carrying the same upstreamModelId is dropped so
 // the manual copy is the only one for that id.
 
-import { effortForOpencodeGoModelKey } from './capabilities.ts';
+import { reasoningForOpencodeGoModelKey } from './capabilities.ts';
 import { opencodeGoCatalogModelForId, type OpencodeGoCatalogModel, type OpencodeGoEndpointKey } from './catalog.ts';
 import { assertOpencodeGoUpstreamRecord, type OpencodeGoUpstreamConfig } from './config.ts';
 import { OPENCODE_GO_DEFAULT_FLAGS } from './defaults.ts';
@@ -52,11 +52,11 @@ const ENDPOINTS_BY_KEY: Readonly<Record<OpencodeGoEndpointKey, ModelEndpoints>> 
 
 const chatForCatalogModel = (snapshot: OpencodeGoCatalogModel | undefined, id: string): ProviderModel['chat'] => {
   const modalities = snapshot?.modalities;
-  const effort = effortForOpencodeGoModelKey(id);
-  if (modalities === undefined && effort === null) return undefined;
+  const reasoning = reasoningForOpencodeGoModelKey(id);
+  if (modalities === undefined && reasoning === null) return undefined;
   return {
     ...(modalities !== undefined ? { modalities: { input: [...modalities], output: ['text'] as const } } : {}),
-    ...(effort !== null ? { reasoning: { effort } } : {}),
+    ...(reasoning !== null ? { reasoning } : {}),
   };
 };
 

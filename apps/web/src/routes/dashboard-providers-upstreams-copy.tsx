@@ -58,6 +58,11 @@ const copyableRecord = (source: UpstreamRecord, name: string, hue: number): {
       record: { ...base, kind: 'opencode-go', config: structuredClone(source.config), state: null },
       preserveCredentials: true,
     };
+  case 'opencode':
+    return {
+      record: { ...base, kind: 'opencode', config: structuredClone(source.config), state: null },
+      preserveCredentials: true,
+    };
   case 'copilot':
     return {
       record: {

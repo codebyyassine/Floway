@@ -10,7 +10,7 @@ export const opencodeGoProviderModule: ProviderModule = {
 export { createOpencodeGoProvider } from './provider.ts';
 export { assertOpencodeGoUpstreamRecord, parseOpencodeGoUpstreamConfig, OPENCODE_GO_DEFAULT_BASE_URL, type OpencodeGoUpstreamConfig, type OpencodeGoUpstreamRecord } from './config.ts';
 export { pricingForOpencodeGoModelKey } from './pricing.ts';
-export { effortForOpencodeGoModelKey, type OpencodeGoEffortConfig } from './capabilities.ts';
+export { effortForOpencodeGoModelKey, reasoningForOpencodeGoModelKey, type OpencodeGoEffortConfig, type OpencodeGoReasoningConfig } from './capabilities.ts';
 export { opencodeGoCatalogModelForId, opencodeGoCatalogModels, type OpencodeGoCatalogModel, type OpencodeGoEndpointKey } from './catalog.ts';
 export { fetchOpencodeGoModelIds } from './fetch-models.ts';
 export { assertOpencodeGoUpstreamState, emptyOpencodeGoUpstreamState, readOpencodeGoUpstreamState, type OpencodeGoUpstreamState, type OpencodeGoUsageObservation, type OpencodeGoUsageProbeEntry } from './state.ts';

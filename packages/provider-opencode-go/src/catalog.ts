@@ -1,16 +1,21 @@
 // Typed reader for the checked-in OpenCode Go model snapshot
 // (`src/catalog.generated.json`).
 //
-// Provenance: generated from https://models.dev/api.json, provider block
-// `opencode-go` — the same registry OpenCode itself reads (see
-// https://opencode.ai/docs/go/). Refresh with:
-//   pnpm --filter @floway-dev/provider-opencode-go run generate:catalog
+// Provenance: generated from https://models.opencode.ai/api.json, provider
+// block `opencode-go` — the same registry OpenCode itself reads — joined
+// against the live `GET https://opencode.ai/zen/go/v1/models` availability
+// signal, with per-model endpoints from that model's own row of the vendor
+// endpoint table (see https://opencode.ai/docs/go/). Refresh with:
+//   pnpm tools:generate-opencode-go-catalog
 //
-// Each snapshot entry carries the per-model wire (`endpoint`), display name,
-// context/output limits, input modalities, and the registry's own pricing
-// (USD per one token). The provider joins this static metadata against the
-// live `/v1/models` availability signal: a model id present upstream but
-// absent here is still emitted with minimal metadata.
+// Each snapshot entry carries the registry display name, context/output
+// limits, input modalities, and the registry's own pricing (USD per one
+// token). The per-model wire (`endpoint`) is present only when the docs table
+// names that model's row; a live model with no row carries no endpoint, and
+// the provider falls back to the chat-completions wire (see provider.ts). The
+// provider joins this static metadata against the live `/v1/models`
+// availability signal: a model id present upstream but absent here is still
+// emitted with minimal metadata.
 
 import catalogJson from './catalog.generated.json' with { type: 'json' };
 import type { ModelPricing } from '@floway-dev/protocols/common';
@@ -22,8 +27,10 @@ const ENDPOINT_KEYS: ReadonlySet<string> = new Set<string>(['openaiResponses', '
 
 export interface OpencodeGoCatalogModel {
   id: string;
-  endpoint: OpencodeGoEndpointKey;
-  endpointInferred?: boolean;
+  // Present only when the docs table names this model's row; absent for live
+  // models the table does not document. The provider falls back to the
+  // chat-completions wire for those.
+  endpoint?: OpencodeGoEndpointKey;
   name?: string;
   source?: string | null;
   maxContextTokens?: number;
@@ -40,12 +47,11 @@ const optionalPositiveInt = (value: unknown): number | undefined =>
 const parseCatalogModel = (value: unknown): OpencodeGoCatalogModel | null => {
   if (!isRecord(value)) return null;
   if (typeof value.id !== 'string' || value.id === '') return null;
-  if (typeof value.endpoint !== 'string' || !ENDPOINT_KEYS.has(value.endpoint)) return null;
-  const model: OpencodeGoCatalogModel = {
-    id: value.id,
-    endpoint: value.endpoint as OpencodeGoEndpointKey,
-  };
-  if (value.endpointInferred === true) model.endpointInferred = true;
+  if (value.endpoint !== undefined && (typeof value.endpoint !== 'string' || !ENDPOINT_KEYS.has(value.endpoint))) return null;
+  const model: OpencodeGoCatalogModel = { id: value.id };
+  if (typeof value.endpoint === 'string' && ENDPOINT_KEYS.has(value.endpoint)) {
+    model.endpoint = value.endpoint as OpencodeGoEndpointKey;
+  }
   if (typeof value.name === 'string' && value.name !== '') model.name = value.name;
   if (value.source === null) model.source = null;
   else if (typeof value.source === 'string' && value.source !== '') model.source = value.source;

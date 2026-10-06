@@ -46,6 +46,9 @@ import type {
   OpencodeGoUpstreamConfig as StoredOpencodeGoUpstreamConfig,
   OpencodeGoUpstreamState as StoredOpencodeGoUpstreamState,
 } from '@floway-dev/provider-opencode-go';
+import type {
+  OpencodeZenUpstreamConfig as StoredOpencodeZenUpstreamConfig,
+} from '@floway-dev/provider-opencode-zen';
 
 export type { ClaudeCodeQuotaWindow, CodexQuotaSnapshot, CodexQuotaSnapshotMap, CodexRateLimitResetCredit, CodexRateLimitResetCredits, CustomModelsFetch, ProxyFallbackEntry };
 export type { ProviderModelsFailureResponse } from '@floway-dev/provider';
@@ -95,6 +98,11 @@ export type OllamaUpstreamConfig = Omit<StoredOllamaUpstreamConfig, 'apiKey'> & 
 };
 
 export type OpencodeGoUpstreamConfig = Omit<StoredOpencodeGoUpstreamConfig, 'apiKey'> & {
+  apiKey?: string | null;
+  apiKeySet?: boolean;
+};
+
+export type OpencodeZenUpstreamConfig = Omit<StoredOpencodeZenUpstreamConfig, 'apiKey'> & {
   apiKey?: string | null;
   apiKeySet?: boolean;
 };
@@ -158,6 +166,7 @@ type RedactedAzureConfig = Omit<StoredAzureUpstreamConfig, 'apiKey'> & { apiKeyS
 type RedactedCopilotConfig = Omit<StoredCopilotUpstreamConfig, 'githubToken'> & { githubTokenSet: boolean };
 type RedactedOllamaConfig = Omit<StoredOllamaUpstreamConfig, 'apiKey'> & { apiKeySet: boolean };
 type RedactedOpencodeGoConfig = Omit<StoredOpencodeGoUpstreamConfig, 'apiKey'> & { apiKeySet: boolean };
+type RedactedOpencodeZenConfig = Omit<StoredOpencodeZenUpstreamConfig, 'apiKey'> & { apiKeySet: boolean };
 
 type RedactedCodexCredential = Pick<
   CodexAccountCredential,
@@ -181,7 +190,8 @@ export type RedactedSerializedUpstreamRecord =
   | (SerializedUpstreamRecordBase & { kind: 'codex'; config: StoredCodexUpstreamConfig; state: { accounts: RedactedCodexCredential[] } })
   | (SerializedUpstreamRecordBase & { kind: 'claude-code'; config: StoredClaudeCodeUpstreamConfig; state: { accounts: RedactedClaudeCodeCredential[] } })
   | (SerializedUpstreamRecordBase & { kind: 'ollama'; config: RedactedOllamaConfig; state: StoredOllamaUpstreamState | null })
-  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: RedactedOpencodeGoConfig; state: StoredOpencodeGoUpstreamState | null });
+  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: RedactedOpencodeGoConfig; state: StoredOpencodeGoUpstreamState | null })
+  | (SerializedUpstreamRecordBase & { kind: 'opencode'; config: RedactedOpencodeZenConfig; state: null });
 
 export type FullSerializedUpstreamRecord =
   | (SerializedUpstreamRecordBase & { kind: 'custom'; config: StoredCustomUpstreamConfig; state: null })
@@ -190,7 +200,8 @@ export type FullSerializedUpstreamRecord =
   | (SerializedUpstreamRecordBase & { kind: 'codex'; config: StoredCodexUpstreamConfig; state: StoredCodexUpstreamState })
   | (SerializedUpstreamRecordBase & { kind: 'claude-code'; config: StoredClaudeCodeUpstreamConfig; state: StoredClaudeCodeUpstreamState })
   | (SerializedUpstreamRecordBase & { kind: 'ollama'; config: StoredOllamaUpstreamConfig; state: StoredOllamaUpstreamState | null })
-  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: StoredOpencodeGoUpstreamConfig; state: StoredOpencodeGoUpstreamState | null });
+  | (SerializedUpstreamRecordBase & { kind: 'opencode-go'; config: StoredOpencodeGoUpstreamConfig; state: StoredOpencodeGoUpstreamState | null })
+  | (SerializedUpstreamRecordBase & { kind: 'opencode'; config: StoredOpencodeZenUpstreamConfig; state: null });
 
 // A blueprint is an unsaved upstream, so it carries no hue: the dashboard
 // picks one distinct from the hues already in use and sends it on create.
@@ -203,7 +214,8 @@ export type BlueprintSerializedUpstreamRecord =
   | (BlueprintUpstreamRecordBase & { kind: 'codex'; config: { accounts: CodexAccountIdentity[] }; state: { accounts: CodexAccountCredential[] } })
   | (BlueprintUpstreamRecordBase & { kind: 'claude-code'; config: { accounts: ClaudeCodeAccountIdentity[] }; state: { accounts: ClaudeCodeAccountCredential[] } })
   | (BlueprintUpstreamRecordBase & { kind: 'ollama'; config: StoredOllamaUpstreamConfig; state: null })
-  | (BlueprintUpstreamRecordBase & { kind: 'opencode-go'; config: StoredOpencodeGoUpstreamConfig; state: null });
+  | (BlueprintUpstreamRecordBase & { kind: 'opencode-go'; config: StoredOpencodeGoUpstreamConfig; state: null })
+  | (BlueprintUpstreamRecordBase & { kind: 'opencode'; config: StoredOpencodeZenUpstreamConfig; state: null });
 
 export interface ModelsCacheStatus {
   fetchedAt: number | null;
@@ -232,7 +244,8 @@ export type UpstreamRecord =
   | (DashboardUpstreamRecordBase & { kind: 'codex'; config: CodexUpstreamConfig; state: CodexUpstreamState; codex_quota?: CodexQuotaSnapshotMap | null })
   | (DashboardUpstreamRecordBase & { kind: 'claude-code'; config: ClaudeCodeUpstreamConfig; state: ClaudeCodeUpstreamState })
   | (DashboardUpstreamRecordBase & { kind: 'ollama'; config: OllamaUpstreamConfig; state: StoredOllamaUpstreamState | null })
-  | (DashboardUpstreamRecordBase & { kind: 'opencode-go'; config: OpencodeGoUpstreamConfig; state: StoredOpencodeGoUpstreamState | null });
+  | (DashboardUpstreamRecordBase & { kind: 'opencode-go'; config: OpencodeGoUpstreamConfig; state: StoredOpencodeGoUpstreamState | null })
+  | (DashboardUpstreamRecordBase & { kind: 'opencode'; config: OpencodeZenUpstreamConfig; state: null });
 
 export interface ListedUpstreamModel extends UpstreamModelConfig {
   codexDefaults?: UpstreamModelConfig;

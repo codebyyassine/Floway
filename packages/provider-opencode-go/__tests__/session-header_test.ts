@@ -84,7 +84,7 @@ test('a client-supplied conversation header reaches the upstream', async () => {
 test('Floway names itself rather than letting a generic HTTP agent through', async () => {
   const sent = await dispatchChat(new Headers());
   assertEquals(sent.headers.get('user-agent'), OPENCODE_GO_USER_AGENT);
-  assertEquals(sent.headers.get('user-agent'), 'floway');
+  assertEquals(sent.headers.get('user-agent'), 'pi');
 });
 
 test('an explicit per-call identity still wins over the default', async () => {

@@ -49,6 +49,7 @@
     "@floway-dev/provider-custom": "workspace:*",
     "@floway-dev/provider-ollama": "workspace:*",
     "@floway-dev/provider-opencode-go": "workspace:*",
+    "@floway-dev/provider-opencode-zen": "workspace:*",
     "@floway-dev/proxy": "workspace:*",
     "@floway-dev/translate": "workspace:*",
     "@hono/zod-validator": "^0.8.0",

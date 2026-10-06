@@ -63,6 +63,7 @@ const zhHansCN = {
       'claude-code': 'Claude Code',
       ollama: 'Ollama',
       'opencode-go': 'OpenCode Go',
+      opencode: 'OpenCode Zen',
     },
     dashboard: {
       title: 'Dashboard',
@@ -449,6 +450,7 @@ const zhHansCN = {
           'claude-code': 'Claude Pro、Max 或 Team 订阅',
           ollama: 'ollama.com 或自托管服务',
           'opencode-go': 'Go 或 Go Plus 订阅',
+          opencode: 'OpenCode Zen 订阅',
         },
         models: {
           count_other: '{{count, number}} 个模型',
@@ -467,6 +469,7 @@ const zhHansCN = {
         summary: {
           ollama: 'Ollama 端点',
           'opencode-go': 'OpenCode Go 端点',
+          opencode: 'OpenCode Zen 端点',
           copilot: 'GitHub Copilot 账号',
           noAccount: '尚未连接账号',
         },
@@ -998,6 +1001,10 @@ const zhHansCN = {
             unreadable: 'OpenCode Go 返回的用量窗口不是此面板可识别的结构。',
             backgroundFailed: '最近一次后台刷新失败：{{message}}',
           },
+        },
+        opencodeZen: {
+          baseUrlHint: 'OpenCode Zen 的所有模型都由同一个公开网关提供服务，该地址由 Floway 自动填写。',
+          apiKeyHint: '在 OpenCode 控制台 opencode.ai/auth 创建密钥。',
         },
         oauth: {
           'refresh': '刷新凭据',

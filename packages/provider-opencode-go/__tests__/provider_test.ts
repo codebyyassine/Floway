@@ -58,7 +58,7 @@ test('getProvidedModels selects the per-model wire from the Floway OpenCode Go s
   });
 });
 
-test('getProvidedModels merges snapshot metadata, hand-authored pricing, and effort presets', async () => {
+test('getProvidedModels merges snapshot metadata, generated registry pricing, and reasoning presets', async () => {
   const instance = createOpencodeGoProvider(buildRecord());
   await withMockedFetch(respond, async () => {
     const models = await instance.instance.getProvidedModels(testFetcher);
@@ -68,12 +68,30 @@ test('getProvidedModels merges snapshot metadata, hand-authored pricing, and eff
     assertEquals(grok.limits.max_context_window_tokens, 500000);
     assertEquals(grok.limits.max_output_tokens, 500000);
     assertEquals(grok.chat?.modalities, { input: ['text', 'image'], output: ['text'] });
-    // Hand-authored pricing wins over the snapshot's own pricing.
+    // Generated registry pricing wins over the snapshot's own pricing.
     assertEquals(grok.pricing?.entries[0]?.rates.input_tokens, '0.000002');
     assertEquals(grok.pricing?.entries.length, 2);
-    // Effort presets come from the hand-authored capabilities table.
+    // Effort presets come from the generated capabilities table.
     assertEquals(grok.chat?.reasoning?.effort?.supported, ['low', 'medium', 'high', 'xhigh']);
     assertEquals(grok.chat?.reasoning?.effort?.default, 'high');
+  });
+});
+
+test('getProvidedModels surfaces toggle-only registry reasoning as adaptive', async () => {
+  const instance = createOpencodeGoProvider(buildRecord());
+  await withMockedFetch(respond, async () => {
+    const models = await instance.instance.getProvidedModels(testFetcher);
+    const minimax = models.find(m => m.id === 'minimax-m3')!;
+    assertEquals(minimax.chat?.reasoning, { adaptive: true });
+  });
+});
+
+test('getProvidedModels never emits registry rows with no live counterpart', async () => {
+  const instance = createOpencodeGoProvider(buildRecord());
+  await withMockedFetch(respond, async () => {
+    const models = await instance.instance.getProvidedModels(testFetcher);
+    // space-bunny-free lingers in the registry but is not served upstream.
+    assertEquals(models.some(m => m.id === 'space-bunny-free'), false);
   });
 });
 

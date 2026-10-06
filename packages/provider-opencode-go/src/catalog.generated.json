@@ -1,8 +1,8 @@
 {
   "$comment": [
-    "Generated from https://models.dev/api.json (provider block `opencode-go`).",
-    "Refresh: pnpm --filter @floway-dev/provider-opencode-go run generate:catalog",
-    "Source of truth for OpenCode Go model metadata; OpenCode itself reads the same registry."
+    "Generated from https://models.opencode.ai/api.json (provider block `opencode-go`) joined against https://opencode.ai/zen/go/v1/models, with per-model endpoints from https://opencode.ai/docs/go.",
+    "Refresh: pnpm tools:generate-opencode-go-catalog",
+    "A model id present upstream but absent from the registry is still emitted with minimal metadata; a live model with no row in the docs table carries no endpoint."
   ],
   "models": [
     {
@@ -65,26 +65,7 @@
       }
     },
     {
-      "id": "minimax-m2.5",
-      "endpoint": "anthropicMessages",
-      "name": "MiniMax-M2.5",
-      "source": "opencode-zen",
-      "maxContextTokens": 204800,
-      "maxOutputTokens": 131072,
-      "modalities": [
-        "text"
-      ],
-      "pricing": {
-        "entries": [
-          {
-            "rates": {
-              "input_tokens": "0.0000003",
-              "output_tokens": "0.0000012",
-              "input_cache_read_tokens": "0.00000006"
-            }
-          }
-        ]
-      }
+      "id": "minimax-m2.5"
     },
     {
       "id": "kimi-k3",
@@ -178,28 +159,7 @@
       }
     },
     {
-      "id": "kimi-k2.5",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "Kimi K2.5",
-      "source": "opencode-zen",
-      "maxContextTokens": 262144,
-      "maxOutputTokens": 65536,
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "pricing": {
-        "entries": [
-          {
-            "rates": {
-              "input_tokens": "0.0000006",
-              "output_tokens": "0.000003",
-              "input_cache_read_tokens": "0.00000008"
-            }
-          }
-        ]
-      }
+      "id": "kimi-k2.5"
     },
     {
       "id": "glm-5.2",
@@ -269,50 +229,10 @@
       }
     },
     {
-      "id": "glm-5.1",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "GLM-5.1",
-      "source": "opencode-zen",
-      "maxContextTokens": 204800,
-      "maxOutputTokens": 131072,
-      "modalities": [
-        "text"
-      ],
-      "pricing": {
-        "entries": [
-          {
-            "rates": {
-              "input_tokens": "0.0000014",
-              "output_tokens": "0.0000044",
-              "input_cache_read_tokens": "0.00000026"
-            }
-          }
-        ]
-      }
+      "id": "glm-5.1"
     },
     {
-      "id": "glm-5",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "GLM-5",
-      "source": "opencode-zen",
-      "maxContextTokens": 204800,
-      "maxOutputTokens": 131072,
-      "modalities": [
-        "text"
-      ],
-      "pricing": {
-        "entries": [
-          {
-            "rates": {
-              "input_tokens": "0.000001",
-              "output_tokens": "0.0000032",
-              "input_cache_read_tokens": "0.0000002"
-            }
-          }
-        ]
-      }
+      "id": "glm-5"
     },
     {
       "id": "deepseek-v4-pro",
@@ -359,11 +279,7 @@
       }
     },
     {
-      "id": "deepseek-flash",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "deepseek-flash",
-      "source": null
+      "id": "deepseek-flash"
     },
     {
       "id": "deepseek-v4.1-flash",
@@ -413,7 +329,6 @@
     },
     {
       "id": "qwen3.7-max",
-      "endpoint": "anthropicMessages",
       "name": "Qwen3.7 Max",
       "source": "opencode-go",
       "maxContextTokens": 1000000,
@@ -522,8 +437,6 @@
     },
     {
       "id": "qwen3.6-plus",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
       "name": "Qwen3.6 Plus",
       "source": "opencode-go",
       "maxContextTokens": 1000000,
@@ -560,43 +473,13 @@
       }
     },
     {
-      "id": "qwen3.5-plus",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "Qwen3.5 Plus",
-      "source": "opencode-zen",
-      "maxContextTokens": 262144,
-      "maxOutputTokens": 65536,
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "pricing": {
-        "entries": [
-          {
-            "rates": {
-              "input_tokens": "0.0000002",
-              "output_tokens": "0.0000012",
-              "input_cache_read_tokens": "0.00000002",
-              "input_cache_write_tokens": "0.00000025"
-            }
-          }
-        ]
-      }
+      "id": "qwen3.5-plus"
     },
     {
-      "id": "mimo-v2-pro",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "mimo-v2-pro",
-      "source": null
+      "id": "mimo-v2-pro"
     },
     {
-      "id": "mimo-v2-omni",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "mimo-v2-omni",
-      "source": null
+      "id": "mimo-v2-omni"
     },
     {
       "id": "mimo-v2.6-pro",
@@ -645,18 +528,6 @@
       }
     },
     {
-      "id": "space-bunny-free",
-      "endpoint": "openaiChatCompletions",
-      "name": "Space Bunny Free",
-      "source": "opencode-go",
-      "maxContextTokens": 1048576,
-      "maxOutputTokens": 524288,
-      "modalities": [
-        "text",
-        "image"
-      ]
-    },
-    {
       "id": "longcat-2.5-preview-free",
       "endpoint": "openaiChatCompletions",
       "name": "LongCat 2.5 Preview Free",
@@ -666,7 +537,18 @@
       "modalities": [
         "text",
         "image"
-      ]
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0",
+              "output_tokens": "0",
+              "input_cache_read_tokens": "0"
+            }
+          }
+        ]
+      }
     },
     {
       "id": "mimo-v2.5-pro",
@@ -758,11 +640,7 @@
       }
     },
     {
-      "id": "hy3-preview",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "hy3-preview",
-      "source": null
+      "id": "hy3-preview"
     },
     {
       "id": "gpt-5.6-luna",
@@ -804,7 +682,6 @@
     },
     {
       "id": "grok-4.5",
-      "endpoint": "openaiResponses",
       "name": "Grok 4.5",
       "source": "opencode-go",
       "maxContextTokens": 500000,
@@ -957,11 +834,7 @@
       }
     },
     {
-      "id": "omen-alpha",
-      "endpoint": "openaiChatCompletions",
-      "endpointInferred": true,
-      "name": "omen-alpha",
-      "source": null
+      "id": "omen-alpha"
     },
     {
       "id": "gpt-6-luna",
@@ -996,6 +869,30 @@
               "output_tokens": "0.00000075",
               "input_cache_read_tokens": "0.00000002",
               "input_cache_write_tokens": "0.00000025"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "space-bunny",
+      "endpoint": "openaiChatCompletions",
+      "name": "Space Bunny",
+      "source": "opencode-go",
+      "maxContextTokens": 1048576,
+      "maxOutputTokens": 524288,
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "pricing": {
+        "entries": [
+          {
+            "rates": {
+              "input_tokens": "0.00000015",
+              "output_tokens": "0.0000006",
+              "input_cache_read_tokens": "0.00000003",
+              "input_cache_write_tokens": "0"
             }
           }
         ]

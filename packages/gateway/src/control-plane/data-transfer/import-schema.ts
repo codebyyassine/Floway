@@ -23,6 +23,7 @@ import { parseCopilotUpstreamConfig } from '@floway-dev/provider-copilot';
 import { assertCustomUpstreamRecord } from '@floway-dev/provider-custom';
 import { assertOllamaUpstreamRecord } from '@floway-dev/provider-ollama';
 import { assertOpencodeGoUpstreamRecord } from '@floway-dev/provider-opencode-go';
+import { assertOpencodeZenUpstreamRecord } from '@floway-dev/provider-opencode-zen';
 import { parseProxyUri } from '@floway-dev/proxy';
 
 export interface SerializedProxy {
@@ -115,6 +116,7 @@ const normalizeUpstreamConfig = (record: UpstreamRecord): unknown => {
   case 'azure': return assertAzureUpstreamRecord(record).config;
   case 'ollama': return assertOllamaUpstreamRecord(record).config;
   case 'opencode-go': return assertOpencodeGoUpstreamRecord(record).config;
+  case 'opencode': return assertOpencodeZenUpstreamRecord(record).config;
   case 'codex':
     assertCodexUpstreamRecord(record);
     return record.config;

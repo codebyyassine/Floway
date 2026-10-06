@@ -12,6 +12,7 @@ import { assertCopilotUpstreamRecord, assertCopilotUpstreamState } from '@floway
 import { assertCustomUpstreamRecord } from '@floway-dev/provider-custom';
 import { assertOllamaUpstreamRecord, readOllamaUpstreamState } from '@floway-dev/provider-ollama';
 import { assertOpencodeGoUpstreamRecord, readOpencodeGoUpstreamState, OPENCODE_GO_DEFAULT_BASE_URL } from '@floway-dev/provider-opencode-go';
+import { assertOpencodeZenUpstreamRecord, OPENCODE_ZEN_DEFAULT_BASE_URL } from '@floway-dev/provider-opencode-zen';
 
 export type { FullSerializedUpstreamRecord } from './types.ts';
 
@@ -157,6 +158,17 @@ export const upstreamRecordToJson = (upstream: UpstreamRecord): RedactedSerializ
       state: upstream.state === null ? null : readOpencodeGoUpstreamState(upstream.state),
     };
   }
+  case 'opencode': {
+    const { config } = assertOpencodeZenUpstreamRecord(upstream);
+    return {
+      ...base,
+      kind: 'opencode',
+      // The bearer stays server-only; only its presence crosses.
+      config: { baseUrl: config.baseUrl, models: clone(config.models), apiKeySet: hasSecret(config.apiKey) },
+      // Zen publishes no usage probe, so there is no runtime state to carry.
+      state: stateless(upstream),
+    };
+  }
   }
 };
 
@@ -193,6 +205,10 @@ export const upstreamRecordToFullJson = (upstream: UpstreamRecord): FullSerializ
   case 'opencode-go': {
     const record = assertOpencodeGoUpstreamRecord(upstream);
     return { ...base, kind: 'opencode-go', config: clone(record.config), state: upstream.state === null ? null : readOpencodeGoUpstreamState(upstream.state) };
+  }
+  case 'opencode': {
+    const record = assertOpencodeZenUpstreamRecord(upstream);
+    return { ...base, kind: 'opencode', config: clone(record.config), state: stateless(upstream) };
   }
   }
 };
@@ -235,5 +251,10 @@ export const blueprintUpstreamRecord = (kind: UpstreamProviderKind): BlueprintSe
     // blueprint opens on the provider's own default rather than an empty field
     // the operator would have to know to fill in.
     return { ...base, kind, config: { baseUrl: OPENCODE_GO_DEFAULT_BASE_URL, apiKey: '', models: [] }, state: null };
+  case 'opencode':
+    // The endpoint is a property of the vendor, not an operator choice, so the
+    // blueprint opens on the provider's own default rather than an empty field
+    // the operator would have to know to fill in.
+    return { ...base, kind, config: { baseUrl: OPENCODE_ZEN_DEFAULT_BASE_URL, apiKey: '', models: [] }, state: null };
   }
 };

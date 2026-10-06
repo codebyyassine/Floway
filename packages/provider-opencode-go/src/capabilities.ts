@@ -1,41 +1,82 @@
-// Hand-authored reasoning-effort table for the OpenCode Go provider. The
-// generated snapshot records whether a model reasons, but not which effort
-// presets the gateway may offer for it — that vocabulary comes from the
-// vendor's own model documentation.
-// https://opencode.ai/docs/go/
+// Generated reasoning-capability table for the OpenCode Go provider, read off
+// the checked-in registry snapshot (`src/capabilities.generated.json`).
+//
+// The registry's per-model `reasoning_options` map onto the Floway reasoning
+// shape: named `effort` presets (defaulting to `high` when offered, else the
+// last preset), `budget_tokens` bounds for the operator-supplied budget, and
+// `adaptive` when the model decides its own reasoning depth.
+//
+// Provenance: generated from https://models.opencode.ai/api.json, provider
+// block `opencode-go` — the same registry OpenCode itself reads. Refresh with:
+//   pnpm tools:generate-opencode-go-catalog
+
+import capabilitiesJson from './capabilities.generated.json' with { type: 'json' };
+import type { ChatModelInfo } from '@floway-dev/protocols/common';
 
 export interface OpencodeGoEffortConfig {
   readonly supported: readonly string[];
   readonly default: string;
 }
 
-// Supported reasoning-effort presets per model id, as documented by the
-// vendor. Models absent from this table expose no effort presets.
-// https://opencode.ai/docs/go/
-const OPENCODE_GO_EFFORT: Readonly<Record<string, readonly string[]>> = {
-  'space-bunny-free': ['low', 'medium', 'high', 'xhigh', 'max'],
-  'gpt-6-luna': ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
-  'gpt-5.6-luna': ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
-  'grok-4.7': ['low', 'medium', 'high', 'xhigh'],
-  'grok-4.6': ['low', 'medium', 'high', 'xhigh'],
-  'grok-4.5': ['low', 'medium', 'high', 'xhigh'],
-  'deepseek-v4.1-flash': ['low', 'high', 'max'],
-  'deepseek-v4-pro': ['high', 'max'],
-  'muse-spark-1.3-contributor': ['minimal', 'low', 'medium', 'high', 'xhigh'],
-  'muse-spark-1.2-contributor': ['minimal', 'low', 'medium', 'high', 'xhigh'],
-  'hy4-preview': ['none', 'high'],
-  'hy3': ['none', 'high'],
-  'glm-5.3-flash': ['low', 'high', 'max'],
-  'glm-5.3': ['low', 'high', 'max'],
-  'glm-5.2': ['low', 'high', 'max'],
-  'qwen3.8-flash': ['none', 'low', 'medium', 'xhigh'],
-  'qwen3.8-max': ['none', 'low', 'medium', 'xhigh'],
-  'qwen3.7-plus': ['none', 'high', 'max'],
-  'minimax-m3': ['none', 'thinking'],
+export type OpencodeGoReasoningConfig = NonNullable<ChatModelInfo['reasoning']>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const optionalNonNegativeInt = (value: unknown, label: string): number | undefined => {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Malformed opencode-go capabilities snapshot: ${label} must be a non-negative safe integer`);
+  }
+  return value;
 };
 
-export const effortForOpencodeGoModelKey = (modelKey: string): OpencodeGoEffortConfig | null => {
-  const supported = OPENCODE_GO_EFFORT[modelKey];
-  if (supported === undefined) return null;
-  return { supported, default: supported.includes('high') ? 'high' : supported[supported.length - 1]! };
+const reasoningOf = (value: unknown, label: string): OpencodeGoReasoningConfig | null => {
+  if (!isRecord(value)) throw new Error(`Malformed opencode-go capabilities snapshot: ${label} must be an object`);
+  const reasoning: { effort?: { supported: string[]; default: string }; budget_tokens?: { min?: number; max?: number }; adaptive?: boolean } = {};
+  if (value.effort !== undefined) {
+    if (!isRecord(value.effort) || !Array.isArray(value.effort.supported)) {
+      throw new Error(`Malformed opencode-go capabilities snapshot: ${label}.effort must be an object with a supported array`);
+    }
+    const supported = value.effort.supported.filter((entry): entry is string => typeof entry === 'string' && entry !== '');
+    if (supported.length === 0) throw new Error(`Malformed opencode-go capabilities snapshot: ${label}.effort.supported must be non-empty`);
+    if (typeof value.effort.default !== 'string' || !supported.includes(value.effort.default)) {
+      throw new Error(`Malformed opencode-go capabilities snapshot: ${label}.effort.default must be one of supported`);
+    }
+    reasoning.effort = { supported, default: value.effort.default };
+  }
+  if (value.budget_tokens !== undefined) {
+    if (!isRecord(value.budget_tokens)) throw new Error(`Malformed opencode-go capabilities snapshot: ${label}.budget_tokens must be an object`);
+    const min = optionalNonNegativeInt(value.budget_tokens.min, `${label}.budget_tokens.min`);
+    const max = optionalNonNegativeInt(value.budget_tokens.max, `${label}.budget_tokens.max`);
+    if (min !== undefined && max !== undefined && max < min) {
+      throw new Error(`Malformed opencode-go capabilities snapshot: ${label}.budget_tokens.max must be >= min`);
+    }
+    reasoning.budget_tokens = { ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
+  }
+  if (value.adaptive !== undefined) {
+    if (value.adaptive !== true) throw new Error(`Malformed opencode-go capabilities snapshot: ${label}.adaptive must be true when present`);
+    reasoning.adaptive = true;
+  }
+  if (reasoning.effort === undefined && reasoning.budget_tokens === undefined && reasoning.adaptive === undefined) return null;
+  return reasoning;
 };
+
+const parseCapabilities = (value: unknown): ReadonlyMap<string, OpencodeGoReasoningConfig> => {
+  if (!isRecord(value) || !isRecord(value.models)) {
+    throw new Error('Malformed opencode-go capabilities snapshot: expected { models }');
+  }
+  const capabilities = new Map<string, OpencodeGoReasoningConfig>();
+  for (const [id, entry] of Object.entries(value.models)) {
+    const reasoning = reasoningOf(entry, `opencode-go capabilities model ${id}`);
+    if (reasoning !== null) capabilities.set(id, reasoning);
+  }
+  return capabilities;
+};
+
+const OPENCODE_GO_REASONING: ReadonlyMap<string, OpencodeGoReasoningConfig> = parseCapabilities(capabilitiesJson as unknown);
+
+export const reasoningForOpencodeGoModelKey = (modelKey: string): OpencodeGoReasoningConfig | null =>
+  OPENCODE_GO_REASONING.get(modelKey) ?? null;
+
+export const effortForOpencodeGoModelKey = (modelKey: string): OpencodeGoEffortConfig | null =>
+  reasoningForOpencodeGoModelKey(modelKey)?.effort ?? null;

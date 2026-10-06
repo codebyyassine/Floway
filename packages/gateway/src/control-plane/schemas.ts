@@ -147,7 +147,7 @@ const opaqueBlobCompatibilityScopeSchema = z.object({
 }).strict();
 
 // Mirrors the runtime UpstreamModelConfig in @floway-dev/provider.
-// Azure, custom, ollama, and opencode-go upstreams share this per-model entry; the
+// Azure, custom, ollama, opencode-go, and opencode upstreams share this per-model entry; the
 // canonical per-model endpoint validation lives in the runtime validator.
 const upstreamModelSchema = z.object({
   upstreamModelId: z.string().min(1),
@@ -233,6 +233,24 @@ const opencodeGoConfigSchema = z.object({
   // value stays accepted for imported records, but the dashboard does not
   // expose one — the vendor publishes no documented self-hosted or proxy
   // deployment (https://opencode.ai/docs/go/#endpoints).
+  baseUrl: z.string().min(1).optional(),
+  // Optional: sent as `Authorization: Bearer <apiKey>` when set. PATCH passes
+  // `null` to explicitly clear it.
+  apiKey: z.string().nullable().optional(),
+  models: z.array(upstreamModelSchema).optional(),
+}).refine(config => config.models?.every(model => model.kind !== 'rerank') !== false, {
+  message: 'rerank models require a custom upstream',
+  path: ['models'],
+});
+
+// The bearer credential is optional at the wire layer so edit-mode PATCH can
+// omit it to keep the stored secret; the runtime parser enforces presence.
+const opencodeZenConfigSchema = z.object({
+  // Optional: the provider owns the vendor endpoint and defaults a missing
+  // base URL to it, so an operator can supply only an API key. An explicit
+  // value stays accepted for imported records, but the dashboard does not
+  // expose one — the vendor publishes no documented self-hosted or proxy
+  // deployment (https://opencode.ai/docs/zen).
   baseUrl: z.string().min(1).optional(),
   // Optional: sent as `Authorization: Bearer <apiKey>` when set. PATCH passes
   // `null` to explicitly clear it.
@@ -392,6 +410,7 @@ export const createUpstreamBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('claude-code'), ...upstreamBaseFields, config: z.unknown(), state: z.unknown().optional() }),
   z.object({ kind: z.literal('ollama'), ...upstreamBaseFields, config: ollamaConfigSchema }),
   z.object({ kind: z.literal('opencode-go'), ...upstreamBaseFields, config: opencodeGoConfigSchema }),
+  z.object({ kind: z.literal('opencode'), ...upstreamBaseFields, config: opencodeZenConfigSchema }),
 ]);
 
 // Update is kind-agnostic: kind is read from the existing record, and
@@ -404,7 +423,7 @@ export const createUpstreamBody = z.discriminatedUnion('kind', [
 // without this field the schema would silently strip it and the API would
 // look like it had accepted the change.
 export const updateUpstreamBody = z.object({
-  kind: z.enum(['custom', 'azure', 'copilot', 'codex', 'claude-code', 'ollama', 'opencode-go']).optional(),
+  kind: z.enum(['custom', 'azure', 'copilot', 'codex', 'claude-code', 'ollama', 'opencode-go', 'opencode']).optional(),
   name: z.string().min(1).optional(),
   enabled: z.boolean().optional(),
   sort_order: z.number().int().optional(),

@@ -256,9 +256,11 @@ const opencodeGoSignals = (record: Extract<UpstreamRecord, { kind: 'opencode-go'
 
 const upstreamSignals = (record: UpstreamRecord, t: TFunction, locale: string, now: number): UpstreamSignal[] => {
   switch (record.kind) {
-  // An operator-configured endpoint publishes no account of its own to report on.
+  // An operator-configured endpoint publishes no account of its own to report on,
+  // and Zen documents no usage endpoint, so neither has a row of readings.
   case 'custom':
   case 'azure':
+  case 'opencode':
     return [];
   case 'copilot': return copilotSignals(record, t, locale);
   case 'codex': return codexSignals(record, t, locale, now);
@@ -277,6 +279,7 @@ const upstreamPlan = (record: UpstreamRecord): string | null => {
   case 'custom':
   case 'azure':
   case 'opencode-go':
+  case 'opencode':
     return null;
   case 'copilot': return copilotPlanLabel(record);
   case 'ollama': return ollamaPlanLabel(record);

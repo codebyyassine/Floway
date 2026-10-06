@@ -89,6 +89,7 @@ const PROVIDER_MENU_ORDER: readonly UpstreamProviderKind[] = [
   'claude-code',
   'ollama',
   'opencode-go',
+  'opencode',
 ];
 
 const menuRank = (kind: UpstreamProviderKind) => {
@@ -658,6 +659,7 @@ const upstreamSummary = (record: UpstreamRecord, t: TFunction): string => {
   // so its address is the whole identity.
   case 'ollama': return record.state?.account?.email ?? (record.config.baseUrl || t('dashboard.upstreams.summary.ollama'));
   case 'opencode-go': return record.config.baseUrl || t(`dashboard.upstreams.summary.${record.kind}`);
+  case 'opencode': return record.config.baseUrl || t(`dashboard.upstreams.summary.${record.kind}`);
   case 'copilot': return record.config.user.login ? `${record.config.githubHost}/${record.config.user.login}` : t('dashboard.upstreams.summary.copilot');
   case 'codex': {
     const account = record.config.accounts[0];
