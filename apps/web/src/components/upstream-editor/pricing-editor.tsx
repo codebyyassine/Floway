@@ -1,5 +1,5 @@
 import { AddRegular, DeleteRegular, WarningRegular } from '@fluentui/react-icons';
-import { useId, useMemo, useState } from 'react';
+import { Fragment, useId, useMemo, useState } from 'react';
 
 import {
   baseEntryOf,
@@ -19,6 +19,7 @@ import {
   type PricingEntryDraft,
   type PricingField,
 } from './pricing-model';
+import { PricingPeriodCard } from './pricing-period-card';
 import { fluentComponents } from '../../fluent';
 import { useTranslation } from '../../i18n/translation';
 import { EmptyState } from '../ui/empty-state';
@@ -241,15 +242,18 @@ export function PricingEditor({ kind, onChange, readOnly, value }: {
             if (axis.kind === 'equality') {
               const current = active.selector[axis.id];
               const isPricingPeriod = axis.id === 'pricingPeriod';
-              return <Field className="min-w-0" key={axis.id} label={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriod' : 'dashboard.upstreamEditor.models.serviceTierName')} hint={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriodHint' : 'dashboard.upstreamEditor.models.serviceTierHint')}>
-                <Input
-                  className="!w-full"
-                  placeholder={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriodPlaceholder' : 'dashboard.upstreamEditor.models.serviceTierPlaceholder')}
-                  readOnly={readOnly}
-                  value={typeof current === 'string' ? current : ''}
-                  onChange={(_, data) => patchActive(draft => withEqualityCoordinate(draft, axis.id, data.value))}
-                />
-              </Field>;
+              return <Fragment key={axis.id}>
+                <Field className="min-w-0" label={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriod' : 'dashboard.upstreamEditor.models.serviceTierName')} hint={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriodHint' : 'dashboard.upstreamEditor.models.serviceTierHint')}>
+                  <Input
+                    className="!w-full"
+                    placeholder={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriodPlaceholder' : 'dashboard.upstreamEditor.models.serviceTierPlaceholder')}
+                    readOnly={readOnly}
+                    value={typeof current === 'string' ? current : ''}
+                    onChange={(_, data) => patchActive(draft => withEqualityCoordinate(draft, axis.id, data.value))}
+                  />
+                </Field>
+                {isPricingPeriod && <PricingPeriodCard />}
+              </Fragment>;
             }
             const threshold = thresholdCoordinate(active, axis.id);
             const thresholdId = `${thresholdIdPrefix}-${axis.id}`;
