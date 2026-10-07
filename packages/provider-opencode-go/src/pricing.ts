@@ -6,6 +6,15 @@
 // `tokenPricingEntry` helpers. Tiered entries bill a higher rate once the
 // request's input tokens reach the threshold.
 //
+// DeepSeek peak/off-peak split: `base` carries the authored peak rate (Base
+// billing) and `offPeak` the registry-published off-peak rate, selected by
+// the `pricingPeriod` axis the gateway stamps at request time. Peak rates
+// come from DeepSeek's own pricing page; peak windows follow Beijing time
+// with Chinese statutory holidays fully off-peak. Cache writes are free
+// upstream, so no `input_cache_write` metric is recorded.
+// https://api-docs.deepseek.com/quick_start/pricing
+// https://github.com/NateScarlet/holiday-cn
+//
 // Provenance: generated from https://models.opencode.ai/api.json, provider
 // block `opencode-go` — the same registry OpenCode itself reads. Refresh with:
 //   pnpm tools:generate-opencode-go-catalog
@@ -45,7 +54,7 @@ const ratesOf = (value: unknown, label: string): PublishedRates => {
   };
 };
 
-const parseTables = (value: unknown): { base: ReadonlyMap<string, PublishedRates>; tiers: ReadonlyMap<string, TierRates> } => {
+const parseTables = (value: unknown): { base: ReadonlyMap<string, PublishedRates>; tiers: ReadonlyMap<string, TierRates>; offPeak: ReadonlyMap<string, PublishedRates> } => {
   if (!isRecord(value) || !isRecord(value.base) || !isRecord(value.tiers)) {
     throw new Error('Malformed opencode-go pricing snapshot: expected { base, tiers }');
   }
@@ -60,10 +69,15 @@ const parseTables = (value: unknown): { base: ReadonlyMap<string, PublishedRates
     }
     tiers.set(id, { threshold, ...ratesOf(rates, `opencode-go pricing tier ${id}`) });
   }
-  return { base, tiers };
+  const offPeak = new Map<string, PublishedRates>();
+  if (value.offPeak !== undefined) {
+    if (!isRecord(value.offPeak)) throw new Error('Malformed opencode-go pricing snapshot: offPeak must be an object');
+    for (const [id, rates] of Object.entries(value.offPeak)) offPeak.set(id, ratesOf(rates, `opencode-go pricing off-peak ${id}`));
+  }
+  return { base, tiers, offPeak };
 };
 
-const { base: OPENCODE_GO_BASE_RATES, tiers: OPENCODE_GO_TIER_RATES } = parseTables(pricingJson as unknown);
+const { base: OPENCODE_GO_BASE_RATES, tiers: OPENCODE_GO_TIER_RATES, offPeak: OPENCODE_GO_OFF_PEAK_RATES } = parseTables(pricingJson as unknown);
 
 const toPublishedRates = (rates: PublishedRates): Record<string, string> => ({
   input_tokens: rates.input,
@@ -74,12 +88,19 @@ const toPublishedRates = (rates: PublishedRates): Record<string, string> => ({
 
 const pricingForEntry = (id: string): ModelPricing => {
   const base = OPENCODE_GO_BASE_RATES.get(id)!;
+  const offPeak = OPENCODE_GO_OFF_PEAK_RATES.get(id);
   const tier = OPENCODE_GO_TIER_RATES.get(id);
-  if (tier === undefined) return tokenBasePricing(toPublishedRates(base));
-  return modelPricing(
-    tokenPricingEntry(toPublishedRates(base)),
-    tokenPricingEntry(toPublishedRates(tier), { inputTokens: { operator: 'gte', value: tier.threshold } }),
-  );
+  if (offPeak === undefined && tier === undefined) return tokenBasePricing(toPublishedRates(base));
+  const entries = [tokenPricingEntry(toPublishedRates(base))];
+  // DeepSeek peak/off-peak split: the authored peak rate is Base, and the
+  // registry-published off-peak rate bills the `off-peak` pricingPeriod the
+  // gateway stamps at request time.
+  // https://api-docs.deepseek.com/quick_start/pricing
+  if (offPeak !== undefined) entries.push(tokenPricingEntry(toPublishedRates(offPeak), { pricingPeriod: 'off-peak' }));
+  if (tier !== undefined) {
+    entries.push(tokenPricingEntry(toPublishedRates(tier), { inputTokens: { operator: 'gte', value: tier.threshold } }));
+  }
+  return modelPricing(...entries);
 };
 
 const OPENCODE_GO_MODEL_PRICING: ReadonlyMap<string, ModelPricing> = new Map(

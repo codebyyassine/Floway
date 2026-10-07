@@ -6,7 +6,10 @@ import {
   parseOpencodeDocsEndpoints,
   pricingForRegistryCost,
 } from '../../src/generate-opencode-go-catalog/generate.ts';
+import { priceRequest, perMillionTokenRates, type PriceVector } from '@floway-dev/protocols/common';
 import { assertEquals } from '@floway-dev/test-utils';
+
+const published = (rates: PriceVector): PriceVector => perMillionTokenRates(rates);
 
 const docsRow = (id: string, url: string): string =>
   `<tr><td>Example</td><td>${id}</td><td><code dir="auto">${url}</code></td><td><code dir="auto">@ai-sdk/openai</code></td></tr>`;
@@ -99,6 +102,77 @@ test('buildOpencodeGoSnapshot keeps retired and replacement pricing rows distinc
   });
   assertEquals(snapshot.pricing.base['space-bunny']?.input, '0.15');
   assertEquals(snapshot.pricing.base['space-bunny-free']?.input, '0');
+});
+
+test('buildOpencodeGoSnapshot splits DeepSeek peak Base from the registry off-peak rate', () => {
+  const snapshot = buildOpencodeGoSnapshot({
+    registryPayload: registryPayload({
+      'deepseek-v4-flash': registryModel({ cost: { input: 0.15, output: 0.6, cache_read: 0.003 } }),
+      'deepseek-v4-pro': registryModel({ cost: { input: 0.66, output: 1.98, cache_read: 0.022 } }),
+      'kimi-k3': registryModel(),
+    }),
+    liveIds: ['deepseek-v4-flash', 'deepseek-v4-pro', 'kimi-k3'],
+    docsHtml: docsHtml([
+      docsRow('deepseek-v4-flash', 'https://opencode.ai/zen/go/v1/chat/completions'),
+      docsRow('deepseek-v4-pro', 'https://opencode.ai/zen/go/v1/chat/completions'),
+      docsRow('kimi-k3', 'https://opencode.ai/zen/go/v1/chat/completions'),
+    ].join('')),
+  });
+  // Pricing tables: the authored peak rate is Base, the registry row is the
+  // off-peak entry. Non-split ids carry no off-peak entry.
+  assertEquals(snapshot.pricing.base['deepseek-v4-flash'], { input: '0.3', output: '1.2', cacheRead: '0.006' });
+  assertEquals(snapshot.pricing.offPeak?.['deepseek-v4-flash'], { input: '0.15', output: '0.6', cacheRead: '0.003' });
+  assertEquals(snapshot.pricing.base['deepseek-v4-pro'], { input: '1.32', output: '3.96', cacheRead: '0.044' });
+  assertEquals(snapshot.pricing.offPeak?.['deepseek-v4-pro'], { input: '0.66', output: '1.98', cacheRead: '0.022' });
+  assertEquals(snapshot.pricing.offPeak?.['kimi-k3'], undefined);
+  // Catalog pricing matches the tables: peak at Base, half-price off-peak.
+  const flash = snapshot.catalog.models.find(model => model.id === 'deepseek-v4-flash')!;
+  assertEquals(flash.pricing?.entries.length, 2);
+  assertEquals(
+    priceRequest(flash.pricing!, {}).rates,
+    published({ input_tokens: '0.3', input_cache_read_tokens: '0.006', output_tokens: '1.2' }),
+  );
+  assertEquals(
+    priceRequest(flash.pricing!, { pricingPeriod: 'off-peak' }).rates,
+    published({ input_tokens: '0.15', input_cache_read_tokens: '0.003', output_tokens: '0.6' }),
+  );
+  const pro = snapshot.catalog.models.find(model => model.id === 'deepseek-v4-pro')!;
+  assertEquals(
+    priceRequest(pro.pricing!, {}).rates,
+    published({ input_tokens: '1.32', input_cache_read_tokens: '0.044', output_tokens: '3.96' }),
+  );
+  assertEquals(
+    priceRequest(pro.pricing!, { pricingPeriod: 'off-peak' }).rates,
+    published({ input_tokens: '0.66', input_cache_read_tokens: '0.022', output_tokens: '1.98' }),
+  );
+});
+
+test('buildOpencodeGoSnapshot omits offPeak when no id carries the split', () => {
+  const snapshot = buildOpencodeGoSnapshot({
+    registryPayload: registryPayload({ 'kimi-k3': registryModel() }),
+    liveIds: ['kimi-k3'],
+    docsHtml: docsHtml(docsRow('kimi-k3', 'https://opencode.ai/zen/go/v1/chat/completions')),
+  });
+  assertEquals('offPeak' in snapshot.pricing, false);
+});
+
+test('pricingForRegistryCost bills an authored peak at Base with the registry rate off-peak', () => {
+  const pricing = pricingForRegistryCost(
+    { input: 0.15, output: 0.6, cache_read: 0.003 },
+    'opencode-go model deepseek-v4-flash',
+    'opencode-go',
+    { input: '0.3', output: '1.2', cacheRead: '0.006' },
+  );
+  assertEquals(pricing.entries.length, 2);
+  assertEquals(pricing.entries[1]?.selector, { pricingPeriod: 'off-peak' });
+  assertEquals(
+    priceRequest(pricing, {}).rates,
+    published({ input_tokens: '0.3', input_cache_read_tokens: '0.006', output_tokens: '1.2' }),
+  );
+  assertEquals(
+    priceRequest(pricing, { pricingPeriod: 'off-peak' }).rates,
+    published({ input_tokens: '0.15', input_cache_read_tokens: '0.003', output_tokens: '0.6' }),
+  );
 });
 
 test('the Go adapter reads the opencode-go registry block', () => {

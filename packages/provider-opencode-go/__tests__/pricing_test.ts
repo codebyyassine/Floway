@@ -66,6 +66,33 @@ test('pricingForOpencodeGoModelKey prices free models at zero rather than leavin
   );
 });
 
+test('pricingForOpencodeGoModelKey prices DeepSeek peak at Base with a half-price off-peak entry', () => {
+  const v4Pro = pricingForOpencodeGoModelKey('deepseek-v4-pro');
+  assertEquals(v4Pro?.entries.length, 2);
+  assertEquals(v4Pro?.entries[1]?.selector, { pricingPeriod: 'off-peak' });
+  assertEquals(
+    priceRequest(v4Pro, {}).rates,
+    published({ input_tokens: '1.32', input_cache_read_tokens: '0.044', output_tokens: '3.96' }),
+  );
+  assertEquals(
+    priceRequest(v4Pro, { pricingPeriod: 'off-peak' }).rates,
+    published({ input_tokens: '0.66', input_cache_read_tokens: '0.022', output_tokens: '1.98' }),
+  );
+  for (const id of ['deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'deepseek-v4.1-flash']) {
+    const flash = pricingForOpencodeGoModelKey(id);
+    assertEquals(flash?.entries.length, 2);
+    assertEquals(flash?.entries[1]?.selector, { pricingPeriod: 'off-peak' });
+    assertEquals(
+      priceRequest(flash, {}).rates,
+      published({ input_tokens: '0.3', input_cache_read_tokens: '0.006', output_tokens: '1.2' }),
+    );
+    assertEquals(
+      priceRequest(flash, { pricingPeriod: 'off-peak' }).rates,
+      published({ input_tokens: '0.15', input_cache_read_tokens: '0.003', output_tokens: '0.6' }),
+    );
+  }
+});
+
 test('pricingForOpencodeGoModelKey returns null for ids outside the generated table', () => {
   assertEquals(pricingForOpencodeGoModelKey('unknown-model'), null);
   assertEquals(pricingForOpencodeGoModelKey(''), null);

@@ -55,15 +55,23 @@ const catalogDocumentOf = (snapshot: OpencodeGeneratedSnapshot, source: Opencode
   };
 };
 
-const pricingDocumentOf = (snapshot: OpencodeGeneratedSnapshot, source: OpencodeProviderSource): unknown => ({
-  $comment: [
-    `Generated from ${OPENCODE_REGISTRY_URL} (provider block \`${source.block}\` cost blocks, USD per 1M tokens).`,
-    `Refresh: ${source.refreshCommand}`,
-    'Read by src/pricing.ts, which converts these published rates to USD per token.',
-  ],
-  base: snapshot.pricing.base,
-  tiers: snapshot.pricing.tiers,
-});
+const pricingDocumentOf = (snapshot: OpencodeGeneratedSnapshot, source: OpencodeProviderSource): unknown => {
+  const offPeak = snapshot.pricing.offPeak;
+  const hasOffPeak = offPeak !== undefined && Object.keys(offPeak).length > 0;
+  return {
+    $comment: [
+      `Generated from ${OPENCODE_REGISTRY_URL} (provider block \`${source.block}\` cost blocks, USD per 1M tokens).`,
+      `Refresh: ${source.refreshCommand}`,
+      'Read by src/pricing.ts, which converts these published rates to USD per token.',
+      ...(hasOffPeak
+        ? ['DeepSeek peak/off-peak split: `base` carries the authored peak rate (Base billing), `offPeak` the registry-published off-peak rate. Peak rates from https://api-docs.deepseek.com/quick_start/pricing; peak windows follow Beijing time with Chinese statutory holidays (https://github.com/NateScarlet/holiday-cn) fully off-peak.']
+        : []),
+    ],
+    base: snapshot.pricing.base,
+    tiers: snapshot.pricing.tiers,
+    ...(hasOffPeak ? { offPeak } : {}),
+  };
+};
 
 const capabilitiesDocumentOf = (snapshot: OpencodeGeneratedSnapshot, source: OpencodeProviderSource): unknown => ({
   $comment: [

@@ -5,10 +5,14 @@
 // (`GET <gateway>/v1/models`), and the gateway's docs page HTML, and this
 // module returns the exact JSON-serializable structures the thin CLIs write to
 // the checked-in `*.generated.json` files. Every model value originates from
-// those three payloads; only the endpoint routing below is authored, and it
-// comes from the vendor's own per-model endpoint tables:
+// those three payloads; only the endpoint routing below and the DeepSeek
+// peak-rate overlay (a per-gateway authored table — the registry publishes
+// only flat off-peak rates for those ids) are authored. Endpoint routing comes
+// from the vendor's own per-model endpoint tables:
 // https://opencode.ai/docs/go
 // https://opencode.ai/docs/zen
+// and peak rates from DeepSeek's own pricing page:
+// https://api-docs.deepseek.com/quick_start/pricing
 
 import { modelPricing, parseNonNegativeDecimalString, tokenBasePricing, tokenPricingEntry, type ModelPricing } from '@floway-dev/protocols/common';
 
@@ -30,6 +34,14 @@ export interface OpencodeProviderSource {
   readonly liveModelsUrl: string;
   /** Refresh command recorded in the generated files' comments. */
   readonly refreshCommand: string;
+  /**
+   * Authored peak USD-per-1M-token rates by model id for ids whose registry
+   * row publishes only the flat off-peak rate. The builder emits the authored
+   * peak as `base` (Base billing) and the registry row as the `off-peak`
+   * pricingPeriod entry the gateway stamps at request time. Absent when the
+   * gateway has no peak/off-peak split.
+   */
+  readonly deepseekPeakRates?: Readonly<Record<string, OpencodePublishedRates>>;
 }
 
 export interface OpencodeGeneratedCatalogModel {
@@ -52,10 +64,22 @@ export interface OpencodeGeneratedCatalog {
 
 // Per-1M-token published rates, mirroring the shape the provider's pricing
 // reader consumes: base rates plus an optional long-context tier that bills
-// the whole request once input tokens reach the threshold.
+// the whole request once input tokens reach the threshold, plus an optional
+// off-peak table for ids with an authored peak/off-peak split (peak is Base,
+// the registry-published rate bills the `off-peak` pricingPeriod entry).
+export interface OpencodePublishedRates {
+  input: string;
+  output: string;
+  cacheRead?: string;
+  cacheWrite?: string;
+}
+
 export interface OpencodeGeneratedPricingTables {
-  base: Readonly<Record<string, { input: string; output: string; cacheRead?: string; cacheWrite?: string }>>;
-  tiers: Readonly<Record<string, { threshold: number; input: string; output: string; cacheRead?: string; cacheWrite?: string }>>;
+  base: Readonly<Record<string, OpencodePublishedRates>>;
+  tiers: Readonly<Record<string, OpencodePublishedRates & { threshold: number }>>;
+  // Present only when at least one id carries the split; absent otherwise, so
+  // gateways without a split keep the historical `{ base, tiers }` shape.
+  offPeak?: Readonly<Record<string, OpencodePublishedRates>>;
 }
 
 export interface OpencodeGeneratedReasoning {
@@ -244,12 +268,39 @@ const publishedRatesOf = (cost: Record<string, unknown>, label: string): { input
   return rates;
 };
 
+// Validates authored per-1M-token peak rates (already strings): every rate
+// must parse and already be canonical, so the checked-in snapshot never
+// carries a literal the provider reader would reject as non-canonical.
+const canonicalPeakRates = (rates: OpencodePublishedRates, label: string): OpencodePublishedRates => {
+  const canonical: OpencodePublishedRates = {
+    input: parseNonNegativeDecimalString(rates.input, `${label}.input`),
+    output: parseNonNegativeDecimalString(rates.output, `${label}.output`),
+  };
+  if (canonical.input !== rates.input) throw new Error(`Malformed ${label}.input must be canonical, got ${JSON.stringify(rates.input)}`);
+  if (canonical.output !== rates.output) throw new Error(`Malformed ${label}.output must be canonical, got ${JSON.stringify(rates.output)}`);
+  if (rates.cacheRead !== undefined) {
+    const cacheRead = parseNonNegativeDecimalString(rates.cacheRead, `${label}.cacheRead`);
+    if (cacheRead !== rates.cacheRead) throw new Error(`Malformed ${label}.cacheRead must be canonical, got ${JSON.stringify(rates.cacheRead)}`);
+    canonical.cacheRead = cacheRead;
+  }
+  if (rates.cacheWrite !== undefined) {
+    const cacheWrite = parseNonNegativeDecimalString(rates.cacheWrite, `${label}.cacheWrite`);
+    if (cacheWrite !== rates.cacheWrite) throw new Error(`Malformed ${label}.cacheWrite must be canonical, got ${JSON.stringify(rates.cacheWrite)}`);
+    canonical.cacheWrite = cacheWrite;
+  }
+  return canonical;
+};
+
 // Builds the per-token ModelPricing for one registry `cost` block via the
 // same helpers the provider calls at runtime. `tiers` entries bill the whole
 // request at the tier rate once input tokens reach the threshold;
 // `context_over_200k` is a redundant duplicate of `tiers` and is ignored.
-// `block` names the registry provider block for error messages.
-export const pricingForRegistryCost = (cost: unknown, label: string, block = 'opencode-go'): ModelPricing => {
+// `block` names the registry provider block for error messages. `peak`
+// carries the authored peak rate for ids with a DeepSeek peak/off-peak split:
+// the registry row publishes the flat off-peak rate, so the authored peak
+// bills as Base and the registry rate as the `off-peak` pricingPeriod entry.
+// https://api-docs.deepseek.com/quick_start/pricing
+export const pricingForRegistryCost = (cost: unknown, label: string, block = 'opencode-go', peak?: OpencodePublishedRates): ModelPricing => {
   if (!isRecord(cost)) throw new Error(`Malformed ${block} registry cost for ${label}: must be an object`);
   const costLabel = `${block} registry cost for ${label}`;
   const base = publishedRatesOf(cost, costLabel);
@@ -259,6 +310,16 @@ export const pricingForRegistryCost = (cost: unknown, label: string, block = 'op
     ...(rates.cacheRead !== undefined ? { input_cache_read_tokens: rates.cacheRead } : {}),
     ...(rates.cacheWrite !== undefined ? { input_cache_write_tokens: rates.cacheWrite } : {}),
   });
+  if (peak !== undefined) {
+    if (Array.isArray(cost.tiers) && cost.tiers.length > 0) {
+      throw new Error(`Malformed ${costLabel}: DeepSeek peak/off-peak split cannot combine with context tiers`);
+    }
+    const peakRates = canonicalPeakRates(peak, `${block} authored peak rate for ${label}`);
+    return modelPricing(
+      tokenPricingEntry(toTokenRates(peakRates)),
+      tokenPricingEntry(toTokenRates(base), { pricingPeriod: 'off-peak' }),
+    );
+  }
   if (!Array.isArray(cost.tiers) || cost.tiers.length === 0) return tokenBasePricing(toTokenRates(base));
   const contextTiers = cost.tiers.filter((rawTier): rawTier is Record<string, unknown> => {
     if (!isRecord(rawTier) || !isRecord(rawTier.tier)) return false;
@@ -321,7 +382,12 @@ const catalogModelForRegistryEntry = (
     const modalities = entry.modalities.input.filter((mod): mod is 'text' | 'image' => typeof mod === 'string' && CATALOG_MODALITIES.has(mod));
     if (modalities.length > 0) model.modalities = modalities;
   }
-  if (entry.cost !== undefined) model.pricing = pricingForRegistryCost(entry.cost, `${source.block} model ${id}`, source.block);
+  if (entry.cost !== undefined) {
+    // Ids with an authored peak/off-peak split bill the peak as Base and the
+    // registry row as the `off-peak` entry; every other id bills the registry
+    // row as Base.
+    model.pricing = pricingForRegistryCost(entry.cost, `${source.block} model ${id}`, source.block, source.deepseekPeakRates?.[id]);
+  }
   return model;
 };
 
@@ -332,7 +398,10 @@ const catalogModelForRegistryEntry = (
 // what filters deprecated rows: they linger in the registry but are no
 // longer served). A live id whose docs row wires it to a path Floway cannot
 // route is excluded from the catalog and reported in `excluded`; a live id
-// with no docs row at all is kept but carries no endpoint.
+// with no docs row at all is kept but carries no endpoint. Ids named in the
+// source's `deepseekPeakRates` bill the authored peak as Base with the
+// registry row as the `off-peak` entry, in both the catalog pricing and the
+// pricing tables.
 export const buildOpencodeSnapshot = (args: {
   registryPayload: unknown;
   liveIds: readonly unknown[];
@@ -360,34 +429,48 @@ export const buildOpencodeSnapshot = (args: {
     }
     models.push(catalogModelForRegistryEntry(id, entry, endpoint, args.source));
   }
-  const base: Record<string, { input: string; output: string; cacheRead?: string; cacheWrite?: string }> = {};
-  const tiers: Record<string, { threshold: number; input: string; output: string; cacheRead?: string; cacheWrite?: string }> = {};
+  const base: Record<string, OpencodePublishedRates> = {};
+  const tiers: Record<string, OpencodePublishedRates & { threshold: number }> = {};
+  const offPeak: Record<string, OpencodePublishedRates> = {};
   const capabilities: Record<string, OpencodeGeneratedReasoning> = {};
   for (const id of Object.keys(registryModels).toSorted()) {
     const entry = registryModels[id]!;
     if (entry.cost !== undefined) {
       if (!isRecord(entry.cost)) throw new Error(`Malformed ${args.source.block} registry cost for ${args.source.block} model ${id}: must be an object`);
-      base[id] = publishedRatesOf(entry.cost, `${args.source.block} registry cost for ${args.source.block} model ${id}`);
-      if (Array.isArray(entry.cost.tiers)) {
-        const contextTiers = entry.cost.tiers.filter((rawTier): rawTier is Record<string, unknown> => {
-          if (!isRecord(rawTier) || !isRecord(rawTier.tier)) return false;
-          if (rawTier.tier.type !== 'context') return false;
-          return typeof rawTier.tier.size === 'number' && Number.isSafeInteger(rawTier.tier.size) && rawTier.tier.size > 0;
-        });
-        // The provider's tier table carries a single long-context band per
-        // model, matching every tier the registry publishes today. A second
-        // band must fail loudly here rather than silently diverge from the
-        // catalog pricing built below.
-        if (contextTiers.length > 1) throw new Error(`Malformed ${args.source.block} registry cost for ${args.source.block} model ${id}: expected at most one context tier`);
-        const [tier] = contextTiers;
-        if (tier !== undefined && isRecord(tier.tier)) {
-          const size = tier.tier.size as number;
-          tiers[id] = { threshold: size, ...publishedRatesOf(tier, `${args.source.block} registry cost for ${args.source.block} model ${id}.tiers[${size}]`) };
+      const peak = args.source.deepseekPeakRates?.[id];
+      if (peak !== undefined) {
+        // DeepSeek peak/off-peak split: the registry row publishes the flat
+        // off-peak rate, so the authored peak rate is Base and the registry
+        // row is the off-peak entry.
+        // https://api-docs.deepseek.com/quick_start/pricing
+        if (Array.isArray(entry.cost.tiers) && entry.cost.tiers.length > 0) {
+          throw new Error(`Malformed ${args.source.block} registry cost for ${args.source.block} model ${id}: DeepSeek peak/off-peak split cannot combine with context tiers`);
+        }
+        base[id] = canonicalPeakRates(peak, `${args.source.block} authored peak rate for ${args.source.block} model ${id}`);
+        offPeak[id] = publishedRatesOf(entry.cost, `${args.source.block} registry cost for ${args.source.block} model ${id}`);
+      } else {
+        base[id] = publishedRatesOf(entry.cost, `${args.source.block} registry cost for ${args.source.block} model ${id}`);
+        if (Array.isArray(entry.cost.tiers)) {
+          const contextTiers = entry.cost.tiers.filter((rawTier): rawTier is Record<string, unknown> => {
+            if (!isRecord(rawTier) || !isRecord(rawTier.tier)) return false;
+            if (rawTier.tier.type !== 'context') return false;
+            return typeof rawTier.tier.size === 'number' && Number.isSafeInteger(rawTier.tier.size) && rawTier.tier.size > 0;
+          });
+          // The provider's tier table carries a single long-context band per
+          // model, matching every tier the registry publishes today. A second
+          // band must fail loudly here rather than silently diverge from the
+          // catalog pricing built below.
+          if (contextTiers.length > 1) throw new Error(`Malformed ${args.source.block} registry cost for ${args.source.block} model ${id}: expected at most one context tier`);
+          const [tier] = contextTiers;
+          if (tier !== undefined && isRecord(tier.tier)) {
+            const size = tier.tier.size as number;
+            tiers[id] = { threshold: size, ...publishedRatesOf(tier, `${args.source.block} registry cost for ${args.source.block} model ${id}.tiers[${size}]`) };
+          }
         }
       }
     }
     const reasoning = reasoningForRegistryReasoningOptions(entry.reasoning_options);
     if (reasoning !== null) capabilities[id] = reasoning;
   }
-  return { catalog: { models }, pricing: { base, tiers }, capabilities, excluded };
+  return { catalog: { models }, pricing: { base, tiers, ...(Object.keys(offPeak).length > 0 ? { offPeak } : {}) }, capabilities, excluded };
 };

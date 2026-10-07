@@ -2,28 +2,29 @@
   "$comment": [
     "Generated from https://models.opencode.ai/api.json (provider block `opencode-go` cost blocks, USD per 1M tokens).",
     "Refresh: pnpm tools:generate-opencode-go-catalog",
-    "Read by src/pricing.ts, which converts these published rates to USD per token."
+    "Read by src/pricing.ts, which converts these published rates to USD per token.",
+    "DeepSeek peak/off-peak split: `base` carries the authored peak rate (Base billing), `offPeak` the registry-published off-peak rate. Peak rates from https://api-docs.deepseek.com/quick_start/pricing; peak windows follow Beijing time with Chinese statutory holidays (https://github.com/NateScarlet/holiday-cn) fully off-peak."
   ],
   "base": {
     "deepseek-v4-flash": {
-      "input": "0.15",
-      "output": "0.6",
-      "cacheRead": "0.003"
+      "input": "0.3",
+      "output": "1.2",
+      "cacheRead": "0.006"
     },
     "deepseek-v4-flash-vision-exp": {
-      "input": "0.15",
-      "output": "0.6",
-      "cacheRead": "0.003"
+      "input": "0.3",
+      "output": "1.2",
+      "cacheRead": "0.006"
     },
     "deepseek-v4-pro": {
-      "input": "0.66",
-      "output": "1.98",
-      "cacheRead": "0.022"
+      "input": "1.32",
+      "output": "3.96",
+      "cacheRead": "0.044"
     },
     "deepseek-v4.1-flash": {
-      "input": "0.15",
-      "output": "0.6",
-      "cacheRead": "0.003"
+      "input": "0.3",
+      "output": "1.2",
+      "cacheRead": "0.006"
     },
     "glm-5.2": {
       "input": "1.4",
@@ -238,6 +239,28 @@
       "output": "4.8",
       "cacheRead": "0.12",
       "cacheWrite": "1.5"
+    }
+  },
+  "offPeak": {
+    "deepseek-v4-flash": {
+      "input": "0.15",
+      "output": "0.6",
+      "cacheRead": "0.003"
+    },
+    "deepseek-v4-flash-vision-exp": {
+      "input": "0.15",
+      "output": "0.6",
+      "cacheRead": "0.003"
+    },
+    "deepseek-v4-pro": {
+      "input": "0.66",
+      "output": "1.98",
+      "cacheRead": "0.022"
+    },
+    "deepseek-v4.1-flash": {
+      "input": "0.15",
+      "output": "0.6",
+      "cacheRead": "0.003"
     }
   }
 }
