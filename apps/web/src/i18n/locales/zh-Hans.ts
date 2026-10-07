@@ -786,7 +786,8 @@ const zhHansCN = {
           serviceTierName: 'Service Tier 名称',
           serviceTierPlaceholder: '例如 priority',
           pricingPeriod: '计费时段',
-          pricingPeriodHint: '留空表示基础价格。',
+          pricingPeriodHint:
+              '留空表示基础价格。基础价格即高峰：UTC 每日 01:00-04:00、周一至周五 06:00-10:00；中国法定节假日不计入高峰，按北京时间全天计为低谷。低谷按基础价格的一半计费。',
           pricingPeriodPlaceholder: '例如 off-peak',
           pricingPeriodValues: {
             peak: '高峰',

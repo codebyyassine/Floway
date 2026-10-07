@@ -818,7 +818,8 @@ const en = {
           serviceTierName: 'Service Tier name',
           serviceTierPlaceholder: 'e.g. priority',
           pricingPeriod: 'Pricing Period',
-          pricingPeriodHint: 'Blank selects the Base rate.',
+          pricingPeriodHint:
+              'Blank selects the Base rate. Base is peak: 01:00-04:00 UTC daily and 06:00-10:00 UTC Mon-Fri, excluding Chinese statutory holidays (a holiday is off-peak for its whole Beijing day). Off-peak is half the Base rate.',
           pricingPeriodPlaceholder: 'e.g. off-peak',
           pricingPeriodValues: {
             peak: 'Peak',

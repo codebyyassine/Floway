@@ -24,4 +24,34 @@ describe('read-only pricing editor', () => {
     expect(selected).toHaveLength(1);
     expect(selected[0]?.textContent).toContain(i18n.t('dashboard.upstreamEditor.models.pricingBase'));
   });
+
+  it('reads the rule list as Base against Off-peak and explains the period field', () => {
+    const view = renderInApp(
+      <PricingEditor
+        kind="chat"
+        onChange={vi.fn()}
+        readOnly
+        value={{
+          entries: [
+            { rates: { input_tokens: '0.000001' } },
+            { selector: { pricingPeriod: 'off-peak' }, rates: { input_tokens: '0.0000005' } },
+          ],
+        }}
+      />,
+    );
+
+    const rows = [...view.container.querySelectorAll('[role="option"], .fui-ListItem')];
+    const rowText = (fragment: string): string =>
+      rows.find(row => row.textContent?.includes(fragment))?.textContent ?? '';
+
+    expect(rowText(i18n.t('dashboard.upstreamEditor.models.pricingBase'))).toContain(
+      i18n.t('dashboard.upstreamEditor.models.basePricingSummary'),
+    );
+    const offPeakRow = rowText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodValues.offPeak'));
+    expect(offPeakRow).toContain(i18n.t('dashboard.upstreamEditor.models.overridePricingSummary'));
+    expect(offPeakRow).not.toContain(i18n.t('dashboard.upstreamEditor.models.pricingBase'));
+
+    expect(view.getByText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodHint'))).toBeTruthy();
+    expect(view.getByPlaceholderText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodPlaceholder'))).toBeTruthy();
+  });
 });
