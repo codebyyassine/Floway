@@ -10,7 +10,7 @@ import { createGatewayCtxFromHono, finalizeGatewayResponse, type GatewayCtx } fr
 import { iterateCandidates } from '../shared/iterate-candidates.ts';
 import { readRequestBody, takeRequestBody } from '../shared/request-body.ts';
 import { recordFailedRequest, recordPerformance, type PerformanceTelemetryContext } from '../shared/telemetry/performance.ts';
-import { recordUsage } from '../shared/telemetry/usage.ts';
+import { recordUsage, pricingPeriodForRequestTime } from '../shared/telemetry/usage.ts';
 import { forwardUpstreamResponse } from '../shared/upstream-response.ts';
 import { parseDecimalString, type RerankSourceProtocol } from '@floway-dev/protocols/common';
 import { parseRerankRequest, parseRerankResponse, parseRerankUsage, renderRerankResponse, rerankRequestIncompatibility, type CanonicalRerankResponse, type ParsedRerankRequest } from '@floway-dev/protocols/rerank';
@@ -34,11 +34,13 @@ const settleRerank = (
   identity: TelemetryModelIdentity,
   usage: Pick<CanonicalRerankResponse, 'searchUnits' | 'totalTokens'> | undefined,
   failed: boolean,
+  now: Date = new Date(),
 ): void => {
   const quantities: UsageQuantities = {};
   if (usage?.searchUnits !== undefined) quantities.rerank_searches = parseDecimalString(String(usage.searchUnits));
   if (usage?.totalTokens !== undefined) quantities.input_tokens = parseDecimalString(String(usage.totalTokens));
-  const pricingFacts = usage?.totalTokens === undefined ? {} : { inputTokens: usage.totalTokens };
+  const pricingPeriod = pricingPeriodForRequestTime(now);
+  const pricingFacts = usage?.totalTokens === undefined ? {} : { inputTokens: usage.totalTokens, ...(pricingPeriod === undefined ? {} : { pricingPeriod }) };
   ctx.backgroundScheduler(recordUsage(ctx.apiKeyId, identity, quantities, pricingFacts).catch(error => {
     console.error('Failed to record rerank usage:', error);
   }));

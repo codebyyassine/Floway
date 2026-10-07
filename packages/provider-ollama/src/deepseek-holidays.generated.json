@@ -1,0 +1,127 @@
+{
+  "$comment": [
+    "Chinese statutory public-holiday off-days for the DeepSeek peak/off-peak classifier (src/deepseek-peak.ts).",
+    "Official holidays only (holiday-cn isOffDay=true); adjusted workdays (isOffDay=false) are excluded, so a swapped-in workday bills by its normal weekday/weekend rule.",
+    "Source: https://github.com/NateScarlet/holiday-cn (MIT), which auto-scrapes State Council notices; each year block carries its notice (papers) URL.",
+    "DeepSeek rule: https://api-docs.deepseek.com/quick_start/pricing (Beijing-time weekdays excluding Chinese statutory holidays, 9:00-12:00 / 14:00-18:00).",
+    "Refresh: for each year, fetch https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/<year>.json and copy the isOffDay=true dates into that year block.",
+    "Read by src/deepseek-peak.ts, which treats the full Beijing-time (UTC+8) calendar day as off-peak."
+  ],
+  "years": {
+    "2024": {
+      "papers": [
+        "https://www.gov.cn/zhengce/zhengceku/202310/content_6911528.htm"
+      ],
+      "dates": [
+        "2024-01-01",
+        "2024-02-10",
+        "2024-02-11",
+        "2024-02-12",
+        "2024-02-13",
+        "2024-02-14",
+        "2024-02-15",
+        "2024-02-16",
+        "2024-02-17",
+        "2024-04-04",
+        "2024-04-05",
+        "2024-04-06",
+        "2024-05-01",
+        "2024-05-02",
+        "2024-05-03",
+        "2024-05-04",
+        "2024-05-05",
+        "2024-06-10",
+        "2024-09-15",
+        "2024-09-16",
+        "2024-09-17",
+        "2024-10-01",
+        "2024-10-02",
+        "2024-10-03",
+        "2024-10-04",
+        "2024-10-05",
+        "2024-10-06",
+        "2024-10-07"
+      ]
+    },
+    "2025": {
+      "papers": [
+        "https://www.gov.cn/zhengce/zhengceku/202411/content_6986383.htm"
+      ],
+      "dates": [
+        "2025-01-01",
+        "2025-01-28",
+        "2025-01-29",
+        "2025-01-30",
+        "2025-01-31",
+        "2025-02-01",
+        "2025-02-02",
+        "2025-02-03",
+        "2025-02-04",
+        "2025-04-04",
+        "2025-04-05",
+        "2025-04-06",
+        "2025-05-01",
+        "2025-05-02",
+        "2025-05-03",
+        "2025-05-04",
+        "2025-05-05",
+        "2025-05-31",
+        "2025-06-01",
+        "2025-06-02",
+        "2025-10-01",
+        "2025-10-02",
+        "2025-10-03",
+        "2025-10-04",
+        "2025-10-05",
+        "2025-10-06",
+        "2025-10-07",
+        "2025-10-08"
+      ]
+    },
+    "2026": {
+      "papers": [
+        "https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm"
+      ],
+      "dates": [
+        "2026-01-01",
+        "2026-01-02",
+        "2026-01-03",
+        "2026-02-15",
+        "2026-02-16",
+        "2026-02-17",
+        "2026-02-18",
+        "2026-02-19",
+        "2026-02-20",
+        "2026-02-21",
+        "2026-02-22",
+        "2026-02-23",
+        "2026-04-04",
+        "2026-04-05",
+        "2026-04-06",
+        "2026-05-01",
+        "2026-05-02",
+        "2026-05-03",
+        "2026-05-04",
+        "2026-05-05",
+        "2026-06-19",
+        "2026-06-20",
+        "2026-06-21",
+        "2026-09-25",
+        "2026-09-26",
+        "2026-09-27",
+        "2026-10-01",
+        "2026-10-02",
+        "2026-10-03",
+        "2026-10-04",
+        "2026-10-05",
+        "2026-10-06",
+        "2026-10-07"
+      ]
+    },
+    "2027": {
+      "papers": [],
+      "dates": [],
+      "note": "No State Council 2027 holiday notice published yet (usually issued November/December of the prior year); refresh this block when https://github.com/NateScarlet/holiday-cn publishes 2027.json with its papers URL."
+    }
+  }
+}

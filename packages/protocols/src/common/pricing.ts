@@ -43,6 +43,7 @@ export type PricingSelector = Readonly<Record<string, PricingCoordinateValue>>;
 export type PricingRuntimeFacts = Readonly<{
   serviceTier?: string | null;
   inputTokens?: number;
+  pricingPeriod?: string | null;
 }>;
 
 type PricingRuntimeFactKey<Value> = {
@@ -58,6 +59,7 @@ export type PricingAxis =
 export const PRICING_AXES = [
   { id: 'serviceTier', kind: 'equality', label: 'Service Tier', fact: 'serviceTier' },
   { id: 'inputTokens', kind: 'threshold', label: 'Input Tokens', fact: 'inputTokens' },
+  { id: 'pricingPeriod', kind: 'equality', label: 'Pricing Period', fact: 'pricingPeriod' },
 ] as const satisfies readonly PricingAxis[];
 
 export interface PricingEntry {

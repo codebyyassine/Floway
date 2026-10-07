@@ -1,5 +1,5 @@
 import type { UsageQuantities } from '../../repo/types.ts';
-import { requestOnlyUsageMeasurement, tokenUsage, type UsageMeasurement } from '../shared/telemetry/usage.ts';
+import { requestOnlyUsageMeasurement, tokenUsage, pricingPeriodForRequestTime, type UsageMeasurement } from '../shared/telemetry/usage.ts';
 import { parseDecimalString } from '@floway-dev/protocols/common';
 
 // OpenAI transcription responses discriminate usage by `type`. Token-based
@@ -20,7 +20,7 @@ const audioDurationMeasurement = (seconds: unknown, label: string): UsageMeasure
   };
 };
 
-export const openaiAudioTranscriptionUsageMeasurement = (body: unknown): UsageMeasurement => {
+export const openaiAudioTranscriptionUsageMeasurement = (body: unknown, now?: Date | null): UsageMeasurement => {
   if (!body || typeof body !== 'object') return requestOnlyUsageMeasurement();
   if (!Object.hasOwn(body, 'usage')) {
     if (!Object.hasOwn(body, 'duration')) return requestOnlyUsageMeasurement();
@@ -77,19 +77,20 @@ export const openaiAudioTranscriptionUsageMeasurement = (body: unknown): UsageMe
       ...(audioTokens === undefined ? {} : { input_audio_tokens: parseDecimalString(String(audioTokens)) }),
     };
   }
+  const pricingPeriod = pricingPeriodForRequestTime(now);
   return {
     quantities: {
       ...inputQuantities,
       output_tokens: parseDecimalString(String(outputTokens)),
     },
-    pricingFacts: { inputTokens },
+    pricingFacts: { inputTokens, ...(pricingPeriod === undefined ? {} : { pricingPeriod }) },
     dumpTokenUsage: tokenUsage({ input: inputTokens, output: outputTokens }),
   };
 };
 
-export const measureOpenAIAudioTranscriptionUsage = (value: unknown, sourceApi: string): UsageMeasurement => {
+export const measureOpenAIAudioTranscriptionUsage = (value: unknown, sourceApi: string, now: Date = new Date()): UsageMeasurement => {
   try {
-    return openaiAudioTranscriptionUsageMeasurement(value);
+    return openaiAudioTranscriptionUsageMeasurement(value, now);
   } catch (error) {
     console.warn(
       `audio-transcription: invalid usage in 2xx upstream response for ${sourceApi}; usage row will be request-only`,

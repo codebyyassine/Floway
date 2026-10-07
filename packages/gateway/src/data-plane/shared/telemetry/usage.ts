@@ -4,6 +4,7 @@ import type { TokenUsage, UsageQuantities } from '../../../repo/types.ts';
 import { tokenUsageQuantities, usageMetrics } from '../../../repo/usage-metrics.ts';
 import { priceRequest, type BillableUsage, type PricingRuntimeFacts } from '@floway-dev/protocols/common';
 import type { TelemetryModelIdentity } from '@floway-dev/provider';
+import { deepseekPricingPeriod } from '@floway-dev/provider-ollama';
 
 const TOKEN_USAGE_KEYS = ['input', 'input_cache_read', 'input_cache_write', 'input_cache_write_1h', 'input_image', 'output', 'output_image'] as const satisfies readonly Exclude<keyof TokenUsage, 'tier'>[];
 const INPUT_TOKEN_USAGE_KEYS = ['input', 'input_cache_read', 'input_cache_write', 'input_cache_write_1h', 'input_image'] as const satisfies readonly Exclude<keyof TokenUsage, 'tier'>[];
@@ -179,12 +180,25 @@ export const requestOnlyUsageMeasurement = (): UsageMeasurement => ({
   dumpTokenUsage: null,
 });
 
-export const tokenUsageMeasurement = (usage: TokenUsage | null): UsageMeasurement => {
+// Projects request time onto the `pricingPeriod` pricing axis. The DeepSeek
+// peak/off-peak classifier lives in the owning provider package; the gateway
+// only maps its verdict onto axis coordinates: `off-peak` is stamped, peak
+// resolves to Base by omitting the axis, and provider tables without an
+// `off-peak` entry fall back wholesale to Base — so stamping is safe for
+// every model and each table decides whether the coordinate means anything.
+// A missing timestamp likewise omits the axis and resolves to Base.
+export const pricingPeriodForRequestTime = (now?: Date | null): 'off-peak' | undefined => {
+  if (now == null) return undefined;
+  return deepseekPricingPeriod(now) === 'off-peak' ? 'off-peak' : undefined;
+};
+
+export const tokenUsageMeasurement = (usage: TokenUsage | null, now?: Date | null): UsageMeasurement => {
   const { tier, ...tokens } = usage ?? {};
   const inputTokens = INPUT_TOKEN_USAGE_KEYS.reduce((sum, key) => sum + (tokens[key] ?? 0), 0);
+  const pricingPeriod = pricingPeriodForRequestTime(now);
   return {
     quantities: tokenUsageQuantities(tokens),
-    pricingFacts: { serviceTier: tier, inputTokens },
+    pricingFacts: { serviceTier: tier, inputTokens, ...(pricingPeriod === undefined ? {} : { pricingPeriod }) },
     dumpTokenUsage: usage,
   };
 };
@@ -265,8 +279,8 @@ export const recordUsage = async (
   ]);
 };
 
-export const recordTokenUsage = async (keyId: string, modelIdentity: TelemetryModelIdentity, usage: TokenUsage | null): Promise<void> => {
-  const measurement = tokenUsageMeasurement(usage);
+export const recordTokenUsage = async (keyId: string, modelIdentity: TelemetryModelIdentity, usage: TokenUsage | null, now: Date = new Date()): Promise<void> => {
+  const measurement = tokenUsageMeasurement(usage, now);
   await recordUsage(keyId, modelIdentity, measurement.quantities, measurement.pricingFacts);
 };
 

@@ -261,3 +261,24 @@ test('priceRequest preserves equality facts only when model pricing is unavailab
     rates: null,
   });
 });
+
+test('priceRequest exact-matches pricing period and falls back wholesale to Base on miss', () => {
+  const pricing: ModelPricing = {
+    entries: [
+      { rates: { input_tokens: '5', output_tokens: '30' } },
+      { selector: { pricingPeriod: 'off-peak' }, rates: { input_tokens: '2', output_tokens: '12' } },
+    ],
+  };
+  assertEquals(priceRequest(pricing, { pricingPeriod: 'off-peak' }), {
+    selector: { pricingPeriod: 'off-peak' },
+    rates: { input_tokens: '2', output_tokens: '12' },
+  });
+  assertEquals(priceRequest(pricing, {}), {
+    selector: {},
+    rates: { input_tokens: '5', output_tokens: '30' },
+  });
+  assertEquals(priceRequest(pricing, { pricingPeriod: 'peak' }), {
+    selector: {},
+    rates: { input_tokens: '5', output_tokens: '30' },
+  });
+});

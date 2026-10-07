@@ -121,6 +121,22 @@ export function PricingEditor({ kind, onChange, readOnly, value }: {
 
   const metricName = (metric: BillingMetric): string => t(`dashboard.upstreamEditor.models.pricingMetrics.${metric}`);
 
+  const pricingPeriodLabel = (value: string): string => {
+    if (value === 'peak') return t('dashboard.upstreamEditor.models.pricingPeriodValues.peak');
+    if (value === 'off-peak') return t('dashboard.upstreamEditor.models.pricingPeriodValues.offPeak');
+    return value;
+  };
+
+  const entryDisplayLabel = (draft: PricingEntryDraft): string => pricingEntryCoordinateLabel({
+    ...draft,
+    selector: Object.fromEntries(
+      Object.entries(draft.selector).map(([axisId, coordinate]) =>
+        axisId === 'pricingPeriod' && typeof coordinate === 'string'
+          ? [axisId, pricingPeriodLabel(coordinate)]
+          : [axisId, coordinate]),
+    ),
+  });
+
   const commit = (next: PricingEntryDraft[]) => {
     if (readOnly) return;
     setOwnDrafts(next);
@@ -188,7 +204,7 @@ export function PricingEditor({ kind, onChange, readOnly, value }: {
         selectionMode="single"
       >
         {drafts.map((draft, index) => {
-          const label = pricingEntryCoordinateLabel(draft);
+          const label = entryDisplayLabel(draft);
           const displayLabel = index === baseIndex ? t('dashboard.upstreamEditor.models.pricingBase') : label;
           return <ListItem checkmark={null} className={styles.rule} key={draft.id} value={draft.id}>
             <span className="grid min-w-0 gap-0.5 text-left">
@@ -224,10 +240,11 @@ export function PricingEditor({ kind, onChange, readOnly, value }: {
           {PRICING_AXES.map(axis => {
             if (axis.kind === 'equality') {
               const current = active.selector[axis.id];
-              return <Field className="min-w-0" key={axis.id} label={t('dashboard.upstreamEditor.models.serviceTierName')} hint={t('dashboard.upstreamEditor.models.serviceTierHint')}>
+              const isPricingPeriod = axis.id === 'pricingPeriod';
+              return <Field className="min-w-0" key={axis.id} label={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriod' : 'dashboard.upstreamEditor.models.serviceTierName')} hint={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriodHint' : 'dashboard.upstreamEditor.models.serviceTierHint')}>
                 <Input
                   className="!w-full"
-                  placeholder={t('dashboard.upstreamEditor.models.serviceTierPlaceholder')}
+                  placeholder={t(isPricingPeriod ? 'dashboard.upstreamEditor.models.pricingPeriodPlaceholder' : 'dashboard.upstreamEditor.models.serviceTierPlaceholder')}
                   readOnly={readOnly}
                   value={typeof current === 'string' ? current : ''}
                   onChange={(_, data) => patchActive(draft => withEqualityCoordinate(draft, axis.id, data.value))}
