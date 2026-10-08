@@ -19,7 +19,9 @@ import { ChoiceGroup } from '../ui/choice-group';
 import { Checkbox, Dropdown, Input, Switch } from '../ui/fluent-form-controls';
 import { CHECKBOX_LIST_CLASS, TWO_COLUMN_FORM_CLASS } from '../ui/layout';
 import { SectionHeader } from '../ui/section-header';
+import { MODEL_PEAK_SCHEDULE_OPTIONS, peakScheduleOptionOf, peakScheduleValueOf, type ModelPeakScheduleOption } from './peak-schedules';
 import type { UpstreamChatModelConfig, UpstreamModelConfig } from '@floway-dev/provider/model-config';
+import { hasOffPeakPricingEntry, normalizePeakScheduleOverride } from '@floway-dev/protocols/common';
 
 const {
   Button,
@@ -102,6 +104,20 @@ export function ModelDetail({
   const imageInput = row.config.chat?.modalities?.input.includes('image') === true;
   const opaqueBlobCompatibilityScope = row.config.opaqueBlobCompatibilityScope;
   const bindOpaqueBlobsToUpstream = opaqueBlobCompatibilityScope?.bindToUpstream ?? true;
+
+  // Effective peak schedule for the card beside the pricing rules, mirroring
+  // the gateway precedence: a manual choice wins; auto rows take the upstream
+  // override over their catalog default. Rows with off-peak pricing that name
+  // nothing fall back to DeepSeek, matching gateway billing.
+  const upstreamSchedule = normalizePeakScheduleOverride(record.peak_schedule_override);
+  const upstreamScheduleOrNull = upstreamSchedule === 'inherit'
+    ? undefined
+    : upstreamSchedule === 'none' ? null : upstreamSchedule;
+  const legacySchedule = row.config.pricing !== undefined && hasOffPeakPricingEntry(row.config.pricing) ? 'deepseek' : null;
+  const effectivePeakScheduleId = row.source === 'manual'
+    ? (row.config.peakScheduleId !== undefined ? row.config.peakScheduleId : (upstreamScheduleOrNull ?? legacySchedule))
+    : (upstreamScheduleOrNull ?? row.config.peakScheduleId ?? legacySchedule);
+  const peakScheduleOption = peakScheduleOptionOf(row.config.peakScheduleId);
 
   const updateOpaqueBlobCompatibilityScope = (
     update: Partial<NonNullable<UpstreamModelConfig['opaqueBlobCompatibilityScope']>>,
@@ -255,10 +271,24 @@ export function ModelDetail({
         </EditorSection>}
 
         <EditorSection level={3} title={t('dashboard.upstreamEditor.models.pricing')} description={t('dashboard.upstreamEditor.models.pricingHint')}>
+          {!fieldsReadOnly && <Field className="min-w-0 max-w-[420px]" label={t('dashboard.upstreamEditor.models.peakSchedule')} hint={t('dashboard.upstreamEditor.models.peakScheduleHint')}>
+            <Dropdown
+              aria-label={t('dashboard.upstreamEditor.models.peakSchedule')}
+              selectedOptions={[peakScheduleOption]}
+              value={t(`dashboard.upstreamEditor.peakSchedules.${peakScheduleOption}`)}
+              onOptionSelect={(_, data) => {
+                if (data.optionValue === undefined) return;
+                patch({ peakScheduleId: peakScheduleValueOf(data.optionValue as ModelPeakScheduleOption) });
+              }}
+            >
+              {MODEL_PEAK_SCHEDULE_OPTIONS.map(id => <Option key={id} value={id}>{t(`dashboard.upstreamEditor.peakSchedules.${id}`)}</Option>)}
+            </Dropdown>
+          </Field>}
           <PricingEditor
             readOnly={fieldsReadOnly}
             kind={row.config.kind}
             onChange={pricing => patch({ pricing })}
+            scheduleId={effectivePeakScheduleId}
             value={row.config.pricing}
           />
         </EditorSection>

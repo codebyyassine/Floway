@@ -8,7 +8,7 @@ import { parseAnthropicMessagesStream } from '@floway-dev/protocols/anthropic-me
 import { kindForEndpoints } from '@floway-dev/protocols/common';
 import { parseOpenAIChatCompletionsStream } from '@floway-dev/protocols/openai-chat-completions';
 import { parseOpenAIResponsesStream, type OpenAIResponsesCompactionResult, toCompactPayloadShape } from '@floway-dev/protocols/openai-responses';
-import { headersForAnthropicMessagesCall, jsonRequestBody, serializeModelPathOpenAIAudioTranscriptionRequest, serializeOpenAIImagesEditsRequest, type FetchInit, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderModel, type ProviderOpenAIResponsesResult, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamRecord, publicModelId, resolveEffectiveFlags, streamingProviderCall } from '@floway-dev/provider';
+import { headersForAnthropicMessagesCall, jsonRequestBody, manualPeakSchedulesOf, serializeModelPathOpenAIAudioTranscriptionRequest, serializeOpenAIImagesEditsRequest, type FetchInit, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderModel, type ProviderOpenAIResponsesResult, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamRecord, publicModelId, resolveEffectiveFlags, streamingProviderCall } from '@floway-dev/provider';
 
 const upstreamModelIdOf = (model: ProviderModel): string => (model.providerData as { upstreamModelId: string }).upstreamModelId;
 
@@ -58,6 +58,7 @@ export const createAzureProvider = (record: UpstreamRecord): Provider => {
           limits: { ...(model.limits ?? {}) },
           ...(model.display_name !== undefined ? { display_name: model.display_name } : {}),
           ...(model.pricing ? { pricing: model.pricing } : {}),
+          ...(model.peakScheduleId !== undefined ? { peakScheduleId: model.peakScheduleId } : {}),
           ...(kind === 'chat' && model.chat ? { chat: model.chat } : {}),
           kind,
           endpoints,
@@ -130,6 +131,8 @@ export const createAzureProvider = (record: UpstreamRecord): Provider => {
     inboundHeaderAllowlist: [],
     disabledPublicModelIds: azure.disabledPublicModelIds,
     blockPeakPricedModels: azure.blockPeakPricedModels ?? false,
+    peakScheduleOverride: azure.peakScheduleOverride,
+    manualPeakSchedules: manualPeakSchedulesOf(azure.config),
     modelPrefix: azure.modelPrefix,
     modelsCache: azure.modelsCache,
     instance,

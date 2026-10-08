@@ -34,10 +34,10 @@ import { pricingForOllamaModelKey } from './pricing.ts';
 import { readOllamaUpstreamState } from './state.ts';
 import { scheduleOllamaUsageProbe } from './usage-probe.ts';
 import { parseAnthropicMessagesStream } from '@floway-dev/protocols/anthropic-messages';
-import { type ModelEndpoints, kindForEndpoints } from '@floway-dev/protocols/common';
+import { hasOffPeakPricingEntry, type ModelEndpoints, kindForEndpoints } from '@floway-dev/protocols/common';
 import { parseOpenAIChatCompletionsStream } from '@floway-dev/protocols/openai-chat-completions';
 import { parseOpenAIResponsesStream, type OpenAIResponsesCompactionResult, toCompactPayloadShape } from '@floway-dev/protocols/openai-responses';
-import { headersForAnthropicMessagesCall, jsonRequestBody, publicModelId, resolveEffectiveFlags, serializeModelFieldOpenAIAudioTranscriptionRequest, streamingProviderCall, type FetchInit, type FlagId, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderModel, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamRecord } from '@floway-dev/provider';
+import { headersForAnthropicMessagesCall, jsonRequestBody, manualPeakSchedulesOf, publicModelId, resolveEffectiveFlags, serializeModelFieldOpenAIAudioTranscriptionRequest, streamingProviderCall, type FetchInit, type FlagId, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderModel, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamRecord } from '@floway-dev/provider';
 
 // providerData carries the raw upstream id verbatim — the same value /api/tags
 // returns and the same value the gateway must send back on every inference call.
@@ -72,6 +72,11 @@ const finalizeOllamaModels = (
     if (raw.modifiedAt !== undefined) model.created = raw.modifiedAt;
     const pricing = pricingForOllamaModelKey(raw.id);
     if (pricing) model.pricing = pricing;
+    // The only peak-priced rows in this table are DeepSeek's V4 split
+    // (Base = peak, `off-peak` entry = discount), so an off-peak entry
+    // implies the DeepSeek schedule.
+    // https://api-docs.deepseek.com/quick_start/pricing
+    if (pricing && hasOffPeakPricingEntry(pricing)) model.peakScheduleId = 'deepseek';
     const chat = chatFromOllamaRaw(raw);
     if (chat) model.chat = chat;
     models.push(model);
@@ -124,6 +129,8 @@ export const createOllamaProvider = (record: UpstreamRecord): Provider => {
     if (model.display_name !== undefined) internal.display_name = model.display_name;
     const pricing = model.pricing ?? pricingForOllamaModelKey(model.upstreamModelId);
     if (pricing) internal.pricing = pricing;
+    if (model.peakScheduleId !== undefined) internal.peakScheduleId = model.peakScheduleId;
+    else if (pricing && hasOffPeakPricingEntry(pricing)) internal.peakScheduleId = 'deepseek';
     if (kind === 'chat' && model.chat) internal.chat = model.chat;
     return internal;
   });
@@ -227,6 +234,8 @@ export const createOllamaProvider = (record: UpstreamRecord): Provider => {
     inboundHeaderAllowlist: [],
     disabledPublicModelIds: record.disabledPublicModelIds,
     blockPeakPricedModels: record.blockPeakPricedModels ?? false,
+    peakScheduleOverride: record.peakScheduleOverride,
+    manualPeakSchedules: manualPeakSchedulesOf(config),
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

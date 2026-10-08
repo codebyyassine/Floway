@@ -22,6 +22,7 @@ const commonFields = {
   model_prefix: null,
   hue: 210,
   block_peak_priced_models: false,
+  peak_schedule_override: 'inherit',
   modelsCache: { fetchedAt: null, lastError: null, modelCount: null },
 } satisfies Omit<UpstreamRecord, 'id' | 'kind' | 'config' | 'state'>;
 

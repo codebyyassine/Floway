@@ -71,9 +71,11 @@ const OLLAMA_MODEL_PRICING: readonly PricingRule[] = [
   ['deepseek-v3.1:671b', tokenBasePricing({ input_tokens: '0.56', input_cache_read_tokens: '0.07', output_tokens: '1.68' })],
   ['deepseek-v3.2', tokenBasePricing({ input_tokens: '0.28', input_cache_read_tokens: '0.028', output_tokens: '0.42' })],
   // V4-Pro and `deepseek-flash` are peak-priced at Base with a half-price
-  // off-peak entry selected by the `pricingPeriod` axis (see
-  // `./deepseek-peak.ts`). Cache writes are free upstream, so no
-  // `input_cache_write` metric is recorded.
+  // off-peak entry selected by the `pricingPeriod` axis. The provider tags
+  // these rows with the shared `deepseek` pricing schedule (see
+  // `createOllamaProvider`), and the gateway resolves it per candidate.
+  // Cache writes are free upstream, so no `input_cache_write` metric is
+  // recorded.
   ['deepseek-v4-pro', modelPricing(
     tokenPricingEntry({ input_tokens: '1.32', input_cache_read_tokens: '0.044', output_tokens: '3.96' }),
     tokenPricingEntry({ input_tokens: '0.66', input_cache_read_tokens: '0.022', output_tokens: '1.98' }, { pricingPeriod: 'off-peak' }),

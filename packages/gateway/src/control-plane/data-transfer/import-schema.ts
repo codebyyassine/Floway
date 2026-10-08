@@ -14,7 +14,7 @@ import { isWebSearchProviderName } from '../../shared/web-search-providers.ts';
 import { USERNAME_PATTERN } from '../schemas.ts';
 import { isRecord } from '../shared/field-validators.ts';
 import { parseUpstreamIdsValue } from '../shared/upstream-ids.ts';
-import { BILLING_METRICS, canonicalizePricingSelector, type BillingMetric, parseNonNegativeDecimalString, type PricingSelector } from '@floway-dev/protocols/common';
+import { BILLING_METRICS, canonicalizePricingSelector, normalizePeakScheduleOverride, type BillingMetric, parseNonNegativeDecimalString, type PricingSelector } from '@floway-dev/protocols/common';
 import { ALL_PROVIDER_KINDS, normalizeModelPrefix, normalizeUpstreamHue, parseFlagOverridesWire, parsePerformanceOperation, type ProxyFallbackEntry, type UpstreamProviderKind, type UpstreamRecord } from '@floway-dev/provider';
 import { assertAzureUpstreamRecord } from '@floway-dev/provider-azure';
 import { assertClaudeCodeUpstreamRecord, assertClaudeCodeUpstreamState } from '@floway-dev/provider-claude-code';
@@ -155,6 +155,8 @@ const upstreamWireSchema = parsedBy((value): UpstreamRecord => {
     throw new Error('id must use a raw upstream id, not a legacy provider-prefixed identity');
   }
 
+  const peakScheduleOverride = parseValue(parsedBy(normalizePeakScheduleOverride).optional().default('inherit'), wire.peak_schedule_override);
+
   const record: UpstreamRecord = {
     id,
     kind,
@@ -169,6 +171,9 @@ const upstreamWireSchema = parsedBy((value): UpstreamRecord => {
     modelPrefix: parseValue(parsedBy(normalizeModelPrefix).optional().default(null), wire.model_prefix),
     hue: parseValue(parsedBy(normalizeUpstreamHue), wire.hue),
     blockPeakPricedModels: parseValue(z.boolean({ error: 'block_peak_priced_models must be a boolean' }).optional().default(false), wire.block_peak_priced_models),
+    // 'inherit' is the absent default, matching row hydration: an import of
+    // an untouched upstream round-trips without the field.
+    ...(peakScheduleOverride === 'inherit' ? {} : { peakScheduleOverride }),
     config: wire.config,
     state: normalizeUpstreamState(kind, wire.state),
     modelsCache: null,

@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 
-import { openAICacheTokensFromUsage, pricingPeriodForRequestTime, recordTokenUsage, recordUsage, tokenUsageMeasurement } from '../../../../src/data-plane/shared/telemetry/usage.ts';
+import { openAICacheTokensFromUsage, pricingPeriodForSchedule, recordTokenUsage, recordUsage, tokenUsageMeasurement } from '../../../../src/data-plane/shared/telemetry/usage.ts';
 import { initRepo } from '../../../../src/repo/index.ts';
 import { InMemoryRepo } from '../../../repo/memory.ts';
 import { basePricing, modelPricing, pricingEntry } from '@floway-dev/protocols/common';
@@ -126,37 +126,40 @@ test('recordUsage prices audio duration and token metrics together', async () =>
   ]);
 });
 
-test('pricingPeriodForRequestTime stamps off-peak and omits peak and missing timestamps', () => {
-  // Peak windows (pinned in full by the owning provider package): 01:00-04:00
+test('pricingPeriodForSchedule stamps off-peak and omits peak and missing timestamps', () => {
+  // Peak windows (pinned in full by the shared schedule): 01:00-04:00
   // UTC daily, plus 06:00-10:00 UTC Monday-Friday. Fixtures use Monday
   // 2026-09-28 and Tuesday 2026-09-29, clear of the Mid-Autumn (09-25–09-27)
   // and National Day (10-01–10-07) holiday weeks, so the plain window rule
   // applies.
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-28T00:59:00Z')), 'off-peak');
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-28T01:00:00Z')), undefined);
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-28T03:59:00Z')), undefined);
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-28T04:00:00Z')), 'off-peak');
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-29T05:59:00Z')), 'off-peak');
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-29T06:00:00Z')), undefined);
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-29T09:59:00Z')), undefined);
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-09-29T10:00:00Z')), 'off-peak');
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-28T00:59:00Z')), 'off-peak');
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-28T01:00:00Z')), undefined);
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-28T03:59:00Z')), undefined);
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-28T04:00:00Z')), 'off-peak');
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-29T05:59:00Z')), 'off-peak');
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-29T06:00:00Z')), undefined);
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-29T09:59:00Z')), undefined);
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-09-29T10:00:00Z')), 'off-peak');
   // Weekend morning skips the weekday peak window.
-  assertEquals(pricingPeriodForRequestTime(new Date('2026-10-10T07:00:00Z')), 'off-peak');
-  assertEquals(pricingPeriodForRequestTime(undefined), undefined);
-  assertEquals(pricingPeriodForRequestTime(null), undefined);
+  assertEquals(pricingPeriodForSchedule('deepseek', new Date('2026-10-10T07:00:00Z')), 'off-peak');
+  // A flat schedule never stamps, whatever the hour.
+  assertEquals(pricingPeriodForSchedule(null, new Date('2026-09-28T00:59:00Z')), undefined);
+  assertEquals(pricingPeriodForSchedule('deepseek', undefined), undefined);
+  assertEquals(pricingPeriodForSchedule('deepseek', null), undefined);
 });
 
 test('tokenUsageMeasurement stamps off-peak pricingPeriod while preserving serviceTier and inputTokens', () => {
   const measurement = tokenUsageMeasurement(
     { input: 100, input_cache_read: 20, output: 50, tier: 'flex' },
     new Date('2026-09-28T00:59:00Z'),
+    'deepseek',
   );
   assertEquals(measurement.pricingFacts, { serviceTier: 'flex', inputTokens: 120, pricingPeriod: 'off-peak' });
   assertEquals(measurement.quantities, { input_tokens: '100', input_cache_read_tokens: '20', output_tokens: '50' });
 });
 
 test('tokenUsageMeasurement omits pricingPeriod at peak hours and when the timestamp is absent', () => {
-  const peak = tokenUsageMeasurement({ input: 100, output: 50 }, new Date('2026-09-28T01:00:00Z'));
+  const peak = tokenUsageMeasurement({ input: 100, output: 50 }, new Date('2026-09-28T01:00:00Z'), 'deepseek');
   assertEquals(peak.pricingFacts, { serviceTier: undefined, inputTokens: 100 });
   assertEquals('pricingPeriod' in peak.pricingFacts, false);
   for (const measurement of [
@@ -175,7 +178,7 @@ test('recordTokenUsage resolves the off-peak entry inside the window and Base ou
     pricingEntry({ input_tokens: '5', output_tokens: '30' }),
     pricingEntry({ input_tokens: '2', output_tokens: '12' }, { pricingPeriod: 'off-peak' }),
   );
-  const identity = { model: 'period-model', upstream: 'upstream-a', modelKey: 'period-model', pricing };
+  const identity = { model: 'period-model', upstream: 'upstream-a', modelKey: 'period-model', pricing, peakScheduleId: 'deepseek' };
 
   await recordTokenUsage('key-a', identity, { input: 10, output: 4 }, new Date('2026-09-28T00:59:00Z'));
   await recordTokenUsage('key-a', identity, { input: 10, output: 4 }, new Date('2026-09-28T01:00:00Z'));

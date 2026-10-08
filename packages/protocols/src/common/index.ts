@@ -6,6 +6,7 @@ export * from './data-plane-routes.ts';
 export * from './models.ts';
 export * from './media-type.ts';
 export * from './pricing.ts';
+export * from './pricing-schedule.ts';
 export * from './usage.ts';
 export * from './openai-stream.ts';
 export * from './opaque-value.ts';

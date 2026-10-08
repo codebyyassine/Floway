@@ -91,6 +91,7 @@ const providerModelSchema = z.object({
   }).passthrough().optional(),
   enabledFlags: z.array(z.enum(OPTIONAL_FLAG_IDS)).transform(flags => new Set(flags)),
   flagOverrides: flagOverridesSchema.optional(),
+  peakScheduleId: z.string().nullable().optional(),
 }).passthrough();
 
 const discoveredModelSchema = z.object({
@@ -108,6 +109,7 @@ const discoveredModelSchema = z.object({
     path: z.string().optional(),
   }).passthrough().optional(),
   flagOverrides: flagOverridesSchema.optional(),
+  peakScheduleId: z.string().nullable().optional(),
 }).passthrough();
 
 const modelsCacheSchema = z.object({

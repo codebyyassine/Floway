@@ -35,7 +35,7 @@ import { parseAnthropicMessagesStream } from '@floway-dev/protocols/anthropic-me
 import { type ModelEndpoints, kindForEndpoints } from '@floway-dev/protocols/common';
 import { parseOpenAIChatCompletionsStream } from '@floway-dev/protocols/openai-chat-completions';
 import { parseOpenAIResponsesStream, type OpenAIResponsesCompactionResult, toCompactPayloadShape } from '@floway-dev/protocols/openai-responses';
-import { headersForAnthropicMessagesCall, jsonRequestBody, publicModelId, resolveEffectiveFlags, streamingProviderCall, type FetchInit, type FlagId, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderModel, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamRecord } from '@floway-dev/provider';
+import { headersForAnthropicMessagesCall, jsonRequestBody, manualPeakSchedulesOf, publicModelId, resolveEffectiveFlags, streamingProviderCall, type FetchInit, type FlagId, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderModel, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamRecord } from '@floway-dev/provider';
 
 // providerData carries the raw upstream id verbatim — the same value
 // /v1/models returns and the same value the gateway must send back on every
@@ -125,6 +125,7 @@ export const createOpencodeZenProvider = (record: UpstreamRecord): Provider => {
     if (model.display_name !== undefined) internal.display_name = model.display_name;
     const pricing = model.pricing ?? pricingForOpencodeZenModelKey(model.upstreamModelId);
     if (pricing) internal.pricing = pricing;
+    if (model.peakScheduleId !== undefined) internal.peakScheduleId = model.peakScheduleId;
     if (kind === 'chat' && model.chat) internal.chat = model.chat;
     return internal;
   });
@@ -226,6 +227,8 @@ export const createOpencodeZenProvider = (record: UpstreamRecord): Provider => {
     inboundHeaderAllowlist: [],
     disabledPublicModelIds: record.disabledPublicModelIds,
     blockPeakPricedModels: record.blockPeakPricedModels ?? false,
+    peakScheduleOverride: record.peakScheduleOverride,
+    manualPeakSchedules: manualPeakSchedulesOf(config),
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

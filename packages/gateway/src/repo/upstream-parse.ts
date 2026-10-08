@@ -5,6 +5,7 @@
 
 import type { UpstreamProviderKind } from '@floway-dev/provider';
 import { assertUpstreamProviderKind, normalizeUpstreamHue } from '@floway-dev/provider';
+import { normalizePeakScheduleOverride } from '@floway-dev/protocols/common';
 
 export const parseUpstreamKind = (id: string, value: string | null): UpstreamProviderKind => {
   try {
@@ -25,4 +26,12 @@ export const parseUpstreamHue = (id: string, value: unknown): number => {
 export const parseUpstreamPeakBlock = (id: string, value: unknown): boolean => {
   if (value === 0 || value === 1) return value === 1;
   throw new Error(`Invalid upstream block_peak_priced_models for ${id}`);
+};
+
+export const parseUpstreamPeakSchedule = (id: string, value: unknown): string => {
+  try {
+    return normalizePeakScheduleOverride(value);
+  } catch (cause) {
+    throw new Error(`Invalid upstream peak_schedule_override for ${id}`, { cause });
+  }
 };

@@ -35,9 +35,18 @@ export interface Provider {
   inboundHeaderAllowlist: readonly InboundHeaderMatcher[];
   disabledPublicModelIds: readonly string[];
   // Whether the data plane refuses peak-priced models on this upstream while
-  // DeepSeek peak pricing is in effect. Mirrored from the source row so
-  // resolution reads it off the instance; absent reads as false.
+  // the model's effective schedule says peak. Mirrored from the source row
+  // so resolution reads it off the instance; absent reads as false.
   blockPeakPricedModels?: boolean;
+  // Per-upstream schedule override mirrored from the source row (`'inherit'`
+  // when absent). Resolution applies it over catalog defaults for auto rows;
+  // explicit manual-model choices win over it (see `manualPeakSchedules`).
+  peakScheduleOverride?: string;
+  // Explicit manual-model schedule choices by public model id, mirrored from
+  // the source row's manual rows. Presence is the choice (a `null` value is
+  // an explicit flat); absent means the row inherits. Read at resolution so
+  // the gateway never needs manual/auto provenance off the model.
+  manualPeakSchedules?: Readonly<Record<string, string | null>>;
   // Per-upstream model name prefix policy mirrored from the source upstream
   // record so registry helpers — routing and listing — read it from the
   // instance instead of re-fetching the row. `null` keeps the bare-id behavior.

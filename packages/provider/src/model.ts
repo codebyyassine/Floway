@@ -88,9 +88,17 @@ export interface UpstreamRecord {
   // Entries may reference ids no longer present in the live model list.
   disabledPublicModelIds: string[];
   // Operator opt-in to refuse peak-priced models (pricing with an `off-peak`
-  // entry) while DeepSeek peak pricing is in effect. Absent reads as false;
-  // the gateway normalizes it at every boundary that needs a definite value.
+  // entry) while the model's effective peak/off-peak schedule says peak.
+  // Absent reads as false; the gateway normalizes it at every boundary that
+  // needs a definite value.
   blockPeakPricedModels?: boolean;
+  // Per-upstream peak/off-peak schedule override, resolved per candidate as
+  // manual-model choice, then this, then the catalog default the provider
+  // emitted. `'inherit'` (the default) follows each model; `'none'` bills
+  // every model flat (mirrors that ignore the vendor discount); otherwise a
+  // preset id from `@floway-dev/protocols/common` (`deepseek`,
+  // `zhipu-coding`, `qwen-night`). Absent reads as `'inherit'`.
+  peakScheduleOverride?: string;
   proxyFallbackList: ProxyFallbackEntry[];
   // Per-upstream model name prefix policy. `null` keeps the bare-id behavior
   // — the upstream's models are addressed and listed by bare upstream id only.
@@ -129,6 +137,12 @@ interface ModelMetadata {
   limits: PublicModelLimits;
   kind: ModelKind;
   pricing?: ModelPricing;
+  // Catalog-default peak/off-peak schedule for this model (`null` = flat).
+  // Auto rows carry the preset matching their pricing table (e.g. DeepSeek
+  // tables carry `deepseek`); manual rows carry the operator's explicit
+  // choice, if any. The gateway resolves the effective schedule per
+  // candidate (manual choice, then upstream override, then this).
+  peakScheduleId?: string | null;
   chat?: UpstreamChatModelConfig;
   endpoints: ModelEndpoints;
   opaqueBlobCompatibilityScope?: OpaqueBlobCompatibilityScope;

@@ -256,6 +256,7 @@ export const createUpstream = async (c: CtxWithJson<typeof createUpstreamBody>) 
     modelPrefix,
     hue: body.hue,
     blockPeakPricedModels: body.block_peak_priced_models ?? false,
+    peakScheduleOverride: body.peak_schedule_override ?? 'inherit',
     config: body.config,
     state: stateFromBody,
     // Operator edits never carry the catalog cache; the repo leaves the
@@ -342,6 +343,7 @@ export const updateUpstream = async (c: CtxWithJson<typeof updateUpstreamBody, '
   }
   if (body.hue !== undefined) next = { ...next, hue: body.hue };
   if (body.block_peak_priced_models !== undefined) next = { ...next, blockPeakPricedModels: body.block_peak_priced_models };
+  if (body.peak_schedule_override !== undefined) next = { ...next, peakScheduleOverride: body.peak_schedule_override };
   if (body.config !== undefined) {
     if (patchedCodexConfig !== undefined) {
       next = { ...next, config: patchedCodexConfig };

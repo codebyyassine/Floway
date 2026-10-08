@@ -7,6 +7,11 @@ export interface TelemetryModelIdentity {
   upstream: string;
   modelKey: string;
   pricing: ModelPricing | null;
+  // Effective peak/off-peak schedule resolved at dispatch (manual choice,
+  // then upstream override, then catalog default; `null`/absent = flat).
+  // Usage stamping reads this instead of a global classifier so one
+  // request's bill follows its own serving upstream's schedule.
+  peakScheduleId?: string | null;
 }
 
 // `chat`, `text_completion`, and `embeddings` are the OTel `gen_ai.operation.name`

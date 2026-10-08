@@ -1,4 +1,4 @@
-import { usePricingPeriod } from './pricing-period';
+import { usePricingPeriod, type PricingPeriod } from './pricing-period';
 import { fluentComponents } from '../../fluent';
 import { useTranslation } from '../../i18n/translation';
 import { formatRemaining } from '../../lib/format-duration';
@@ -6,10 +6,11 @@ import { useLocale } from '../../lib/use-locale';
 import { PANEL_STACK_CLASS } from '../ui/layout';
 import { Panel } from '../ui/panel';
 import { StatusBadge } from '../ui/status-badge';
+import { pricingScheduleById } from '@floway-dev/protocols/common';
 
 const { Text, makeStyles } = fluentComponents;
 
-type PricingPeriod = 'peak' | 'off-peak';
+const DAY_MINUTES = 1_440;
 
 // A switch-day countdown reads as a clock, not a duration ladder: H:MM:SS
 // down to the switch, with the hours uncapped across multi-day holiday runs.
@@ -19,31 +20,23 @@ const clockCountdown = (ms: number): string => {
   return `${Math.floor(total / 3_600)}:${pad2(Math.floor(total / 60) % 60)}:${pad2(total % 60)}`;
 };
 
-// The schedule the card draws: two peak windows in UTC and the off-peak run
-// between them. `scope` is what the window is measured against -- the daily
-// band applies to every calendar day, the weekday one only to Monday-Friday.
-const WINDOWS: readonly { endHour: number; period: PricingPeriod; scope: 'daily' | 'weekdays'; startHour: number }[] = [
-  { endHour: 4, period: 'peak', scope: 'daily', startHour: 1 },
-  { endHour: 6, period: 'off-peak', scope: 'daily', startHour: 4 },
-  { endHour: 10, period: 'peak', scope: 'weekdays', startHour: 6 },
-];
-
-const PEAK_SEGMENTS = WINDOWS.filter(row => row.period === 'peak');
 const RULER_HOURS = [0, 6, 12, 18] as const;
 
 // Only the clock face is read, so the date behind it is a stand-in.
 const clockFormat = (locale: string): Intl.DateTimeFormat =>
   new Intl.DateTimeFormat(locale, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', timeZone: 'UTC' });
 
-const clockAt = (format: Intl.DateTimeFormat, hour: number): string => format.format(new Date(hour * 3_600_000));
+const clockAt = (format: Intl.DateTimeFormat, minutes: number): string =>
+  format.format(new Date(minutes * 60_000));
 
 const useStyles = makeStyles({
   // The rail is drawn here rather than handed to ProgressBar: a progress bar
-  // fills from zero, and this day carries two separate windows. Its thickness
-  // is Fluent's own large step -- `barThicknessValues.large` is 4px in
-  // @fluentui/react-progress's useProgressBarStyles -- and the 1.5px corner is
-  // WinUI's ProgressBarCornerRadius, written as the length it is rather than a
-  // multiplier, so the corner holds at whatever thickness the band takes.
+  // fills from zero, and a day can carry several separate peak windows. Its
+  // thickness is Fluent's own large step -- `barThicknessValues.large` is 4px
+  // in @fluentui/react-progress's useProgressBarStyles -- and the 1.5px
+  // corner is WinUI's ProgressBarCornerRadius, written as the length it is
+  // rather than a multiplier, so the corner holds at whatever thickness the
+  // band takes.
   // https://github.com/microsoft/microsoft-ui-xaml/blob/188f602b27cdb47572b28c380e9c087b02e1ccee/controls/dev/ProgressBar/ProgressBar_themeresources.xaml#L29-L32
   track: {
     backgroundColor: 'var(--winui-solid-background-fill-base-alt)',
@@ -76,17 +69,39 @@ const useStyles = makeStyles({
   },
 });
 
-export function PricingPeriodCard({ now }: {
+// Peak windows as rail segments, splitting a midnight-spanning window in two.
+const peakSegmentsOf = (scheduleId: string): ReadonlyArray<{ key: string; left: number; width: number }> => {
+  const def = pricingScheduleById(scheduleId);
+  if (def === undefined) throw new Error(`Unknown peak schedule ${JSON.stringify(scheduleId)}`);
+  return def.windows.flatMap((window, index) => {
+    const span = (window.endMinuteUtc - window.startMinuteUtc + DAY_MINUTES) % DAY_MINUTES;
+    const base = { key: `${window.startMinuteUtc}-${index}` };
+    if (window.endMinuteUtc > window.startMinuteUtc) {
+      return [{ ...base, left: (window.startMinuteUtc / DAY_MINUTES) * 100, width: (span / DAY_MINUTES) * 100 }];
+    }
+    return [
+      { ...base, key: `${base.key}-a`, left: (window.startMinuteUtc / DAY_MINUTES) * 100, width: ((DAY_MINUTES - window.startMinuteUtc) / DAY_MINUTES) * 100 },
+      { ...base, key: `${base.key}-b`, left: 0, width: (window.endMinuteUtc / DAY_MINUTES) * 100 },
+    ];
+  });
+};
+
+export function PricingPeriodCard({ scheduleId, now }: {
+  /** Pricing-schedule preset id the card reads. */
+  scheduleId: string;
   /** Injected clock for tests; live time otherwise. */
   now?: number;
 }) {
   const { t } = useTranslation();
   const locale = useLocale();
   const styles = useStyles();
-  const reading = usePricingPeriod(now);
+  const reading = usePricingPeriod(scheduleId, now);
   const { holidayNote, hour, next, period, remainingMs } = reading;
   const clock = clockFormat(locale);
   const nowPercent = Math.min(100, Math.max(0, (hour / 24) * 100));
+  const def = pricingScheduleById(scheduleId);
+  if (def === undefined) throw new Error(`Unknown peak schedule ${JSON.stringify(scheduleId)}`);
+  const segments = peakSegmentsOf(scheduleId);
 
   // The peak badge is the field's own word; the off-peak one carries the rate
   // it implies, which only the state cares about -- the windows below are
@@ -98,6 +113,12 @@ export function PricingPeriodCard({ now }: {
     value === 'peak'
       ? t('dashboard.upstreamEditor.models.pricingPeriodValues.peak')
       : t('dashboard.upstreamEditor.models.pricingPeriodValues.offPeak');
+  const scopeLabel = (scope: 'daily' | 'weekdays' | 'weekends'): string =>
+    scope === 'daily'
+      ? t('dashboard.upstreamEditor.models.pricingPeriodCard.scopeDaily')
+      : scope === 'weekdays'
+        ? t('dashboard.upstreamEditor.models.pricingPeriodCard.scopeWeekdays')
+        : t('dashboard.upstreamEditor.models.pricingPeriodCard.scopeWeekends');
 
   return <Panel className={`min-w-0 ${PANEL_STACK_CLASS}`}>
     <div className="flex items-center justify-between gap-2">
@@ -124,22 +145,23 @@ export function PricingPeriodCard({ now }: {
         {t('dashboard.upstreamEditor.models.pricingPeriodCard.windowsHeading')}
       </Text>
       <ul className="m-0 grid list-none gap-1 p-0">
-        {WINDOWS.map(row => <li className="flex items-baseline justify-between gap-3" key={row.startHour}>
-          <span className="flex min-w-0 items-baseline gap-2">
-            <span className="font-mono mono-size-xs">{`${clockAt(clock, row.startHour)}-${clockAt(clock, row.endHour)}`}</span>
-            <Text size={200}>{periodLabel(row.period)}</Text>
-          </span>
-          <span className="flex flex-none items-baseline gap-2">
-            <Text size={200} className="text-fui-fg2">
-              {formatRemaining((row.endHour - row.startHour) * 3_600_000, locale)}
-            </Text>
-            <Text size={200} className="text-fui-fg3">
-              {row.scope === 'daily'
-                ? t('dashboard.upstreamEditor.models.pricingPeriodCard.scopeDaily')
-                : t('dashboard.upstreamEditor.models.pricingPeriodCard.scopeWeekdays')}
-            </Text>
-          </span>
-        </li>)}
+        {def.windows.map((row, index) => {
+          const span = (row.endMinuteUtc - row.startMinuteUtc + DAY_MINUTES) % DAY_MINUTES;
+          return <li className="flex items-baseline justify-between gap-3" key={`${row.startMinuteUtc}-${index}`}>
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="font-mono mono-size-xs">{`${clockAt(clock, row.startMinuteUtc)}-${clockAt(clock, row.endMinuteUtc)}`}</span>
+              <Text size={200}>{periodLabel('peak')}</Text>
+            </span>
+            <span className="flex flex-none items-baseline gap-2">
+              <Text size={200} className="text-fui-fg2">
+                {formatRemaining(span * 60_000, locale)}
+              </Text>
+              <Text size={200} className="text-fui-fg3">
+                {scopeLabel(row.days)}
+              </Text>
+            </span>
+          </li>;
+        })}
       </ul>
     </div>
 
@@ -147,12 +169,12 @@ export function PricingPeriodCard({ now }: {
     <div aria-hidden="true" className="grid gap-1">
       <div className={styles.rail}>
         <div className={styles.track}>
-          {PEAK_SEGMENTS.map(segment => <span
+          {segments.map(segment => <span
             className={styles.peak}
-            key={segment.startHour}
+            key={segment.key}
             style={{
-              left: `${(segment.startHour / 24) * 100}%`,
-              width: `${((segment.endHour - segment.startHour) / 24) * 100}%`,
+              left: `${segment.left}%`,
+              width: `${segment.width}%`,
             }}
           />)}
         </div>
@@ -160,7 +182,7 @@ export function PricingPeriodCard({ now }: {
       </div>
       <div className="grid grid-cols-4">
         {RULER_HOURS.map(hourMark => <span className="font-mono mono-size-xs text-fui-fg3" key={hourMark}>
-          {clockAt(clock, hourMark)}
+          {clockAt(clock, hourMark * 60)}
         </span>)}
       </div>
     </div>

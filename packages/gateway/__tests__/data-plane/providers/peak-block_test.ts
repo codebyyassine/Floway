@@ -83,6 +83,7 @@ test('peak + toggle on blocks a peak-priced model with retry timing', async () =
   assertEquals(resolved.peakBlock, {
     retryAfterSeconds: 10_800,
     nextOffPeak: '2026-09-29T10:00:00.000Z',
+    scheduleId: 'deepseek',
   });
 });
 

@@ -36,6 +36,7 @@ export const previewModels = async (c: CtxWithJson<typeof previewModelsBody>) =>
     modelPrefix: record.model_prefix ?? null,
     hue: record.hue ?? 0,
     blockPeakPricedModels: record.block_peak_priced_models ?? false,
+    peakScheduleOverride: record.peak_schedule_override ?? 'inherit',
     config: record.config,
     state: record.state,
     modelsCache: null,

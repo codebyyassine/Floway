@@ -8,7 +8,7 @@ import { type ModelEndpoints, kindForEndpoints } from '@floway-dev/protocols/com
 import { parseOpenAIChatCompletionsStream } from '@floway-dev/protocols/openai-chat-completions';
 import { parseOpenAIResponsesStream, type OpenAIResponsesCompactionResult, toCompactPayloadShape } from '@floway-dev/protocols/openai-responses';
 import { DEFAULT_RERANK_PATHS, serializeRerankRequest } from '@floway-dev/protocols/rerank';
-import { headersForAnthropicMessagesCall, jsonRequestBody, serializeModelFieldOpenAIAudioTranscriptionRequest, serializeOpenAIImagesEditsRequest, publicModelId, resolveEffectiveFlags, streamingProviderCall, type FetchInit, type FlagId, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderModel, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamModelConfig, type UpstreamRecord } from '@floway-dev/provider';
+import { headersForAnthropicMessagesCall, jsonRequestBody, manualPeakSchedulesOf, serializeModelFieldOpenAIAudioTranscriptionRequest, serializeOpenAIImagesEditsRequest, publicModelId, resolveEffectiveFlags, streamingProviderCall, type FetchInit, type FlagId, type HttpHeaderLines, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderModel, type ProviderStreamParser, type UpstreamCallOptions, type UpstreamFetchOptions, type UpstreamModelConfig, type UpstreamRecord } from '@floway-dev/provider';
 
 const rawModelIdOf = (model: ProviderModel): string => model.providerData as string;
 
@@ -128,6 +128,7 @@ export const projectCustomModels = (
     };
     if (model.display_name !== undefined) internal.display_name = model.display_name;
     if (model.pricing) internal.pricing = model.pricing;
+    if (model.peakScheduleId !== undefined) internal.peakScheduleId = model.peakScheduleId;
     if (kind === 'chat' && model.chat) internal.chat = model.chat;
     return internal;
   });
@@ -287,6 +288,8 @@ export const createCustomProvider = (record: UpstreamRecord): Provider => {
     inboundHeaderAllowlist: config.ingressHeadersRules.flatMap(rule => rule.value === null ? [rule.key] : []),
     disabledPublicModelIds: record.disabledPublicModelIds,
     blockPeakPricedModels: record.blockPeakPricedModels ?? false,
+    peakScheduleOverride: record.peakScheduleOverride,
+    manualPeakSchedules: manualPeakSchedulesOf(config),
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

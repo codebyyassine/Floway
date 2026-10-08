@@ -1,22 +1,18 @@
-// Chinese statutory public-holiday off-days for the dashboard's live
-// peak/off-peak readout. DeepSeek bills a whole Beijing calendar day off-peak
-// when it is one of these, so the card beside the Pricing Period field has to
-// know them to say what the gateway will do.
+// Chinese statutory public-holiday off-days for the shared DeepSeek
+// peak/off-peak schedule (`./pricing-schedule.ts`). DeepSeek bills a whole
+// Beijing calendar day off-peak when it is one of these.
 //
-// This is a vendored copy of
-// `packages/provider-ollama/src/deepseek-holidays.generated.json`, kept here
-// because apps/web must not runtime-import a provider package: the dashboard
-// bundle stays browser-safe and the dependency direction in the manifests
-// stays provider -> protocols, not the other way round. The copy is asserted
-// against that file in __tests__/components/upstream-editor/pricing-period-card_test.tsx,
-// so a refresh of the gateway's calendar fails the web suite rather than
-// drifting silently.
+// Vendored from https://github.com/NateScarlet/holiday-cn (MIT), which
+// auto-scrapes the State Council notices; official holidays only
+// (`isOffDay`), adjusted workdays excluded. Previously duplicated in
+// `packages/provider-ollama` and `apps/web`; this copy is now the single
+// source the gateway and the dashboard both read.
+// DeepSeek's own rule: https://api-docs.deepseek.com/quick_start/pricing
 //
-// Source: https://github.com/NateScarlet/holiday-cn (MIT), which auto-scrapes
-// State Council notices (per-year notice URLs live in the JSON this mirrors);
-// official holidays only, adjusted workdays excluded. DeepSeek's own rule:
-// https://api-docs.deepseek.com/quick_start/pricing
-export const PRICING_PERIOD_HOLIDAY_DATES = [
+// Refresh: for each year, fetch
+// https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/<year>.json
+// and copy the `isOffDay=true` dates into this list, keeping it sorted.
+export const DEEPSEEK_HOLIDAY_DATES = [
   '2024-01-01',
   '2024-02-10',
   '2024-02-11',
@@ -107,5 +103,3 @@ export const PRICING_PERIOD_HOLIDAY_DATES = [
   '2026-10-06',
   '2026-10-07',
 ] as const;
-
-export type PricingPeriodHolidayDate = (typeof PRICING_PERIOD_HOLIDAY_DATES)[number];

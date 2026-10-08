@@ -117,7 +117,7 @@ const en = {
         performance:
             'Monitor latency, throughput, and upstream performance signals',
         pricingPeriod:
-            'Check the live DeepSeek peak or off-peak pricing period and the next switch',
+            'Check the live peak or off-peak pricing period and the next switch',
         users:
             'Manage console users, permissions, telemetry access, and upstream scopes',
         backupRestore:
@@ -568,7 +568,17 @@ const en = {
         peakPricing: {
           label: 'Block peak-priced models during peak',
           description:
-              'While DeepSeek peak pricing is in effect, requests for models with off-peak pricing are rejected with a retry time instead of billing at the peak rate.',
+              'While the upstream’s peak schedule says peak, requests for models with off-peak pricing are rejected with a retry time instead of billing at the peak rate.',
+          schedule: 'Peak schedule',
+          scheduleHint:
+              'Model default follows each model’s catalog schedule. None bills every model flat. A preset forces every model onto that vendor’s peak windows.',
+        },
+        peakSchedules: {
+          inherit: 'Model default',
+          none: 'None (flat)',
+          deepseek: 'DeepSeek',
+          'zhipu-coding': 'Zhipu coding',
+          'qwen-night': 'Qwen night',
         },
         hue: {
           description: 'Choose how this upstream is distinguished across the console.',
@@ -813,6 +823,9 @@ const en = {
           pricing: 'Pricing',
           pricingHint:
               'Used only for Floway usage statistics and estimated cost reporting on the Usage page. This does not change upstream billing or request parameters. Prices are in USD per million tokens.',
+          peakSchedule: 'Peak schedule',
+          peakScheduleHint:
+              'Inherit follows the upstream schedule, then the catalog default. None bills this model flat. A preset forces this model onto that vendor’s peak windows.',
           pricingRules: 'Pricing rules',
           pricingEmptyHint: 'Start with a Base price. You can add conditional overrides afterward.',
           setupPricing: 'Set up Base pricing',
@@ -844,6 +857,7 @@ const en = {
             windowsHeading: 'Daily windows (UTC)',
             scopeDaily: 'Daily',
             scopeWeekdays: 'Mon-Fri',
+            scopeWeekends: 'Sat-Sun',
           },
           pricingRates: 'Prices',
           pricingRatesHint: 'USD per million tokens. Enter at least one price and use the same price types in every rule.',

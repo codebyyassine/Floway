@@ -20,7 +20,7 @@ import { z } from 'zod';
 import { normalizeDisabledPublicModelIds } from '../repo/disabled-public-models.ts';
 import { CUSTOM_API_KEY_MAX_LENGTH, KEY_SOURCES } from '../shared/api-key-tokens.ts';
 import { RETENTION_MAX_SECONDS, SECONDS_PER_DAY } from '../shared/retention.ts';
-import { kindForEndpoints, MODEL_KINDS, parseNonNegativeDecimalString, RERANK_PROTOCOLS, tokenUsageUnattributedUserId } from '@floway-dev/protocols/common';
+import { kindForEndpoints, KNOWN_PRICING_SCHEDULE_IDS, MODEL_KINDS, parseNonNegativeDecimalString, RERANK_PROTOCOLS, tokenUsageUnattributedUserId } from '@floway-dev/protocols/common';
 import { type FlagOverrides, MODEL_PREFIX_MAX_LENGTH, MODEL_PREFIX_REGEX, parseFlagOverridesWire, UPSTREAM_HUE_DEGREES } from '@floway-dev/provider';
 
 // --- shared atoms ---
@@ -382,6 +382,15 @@ const modelPrefixSchema = z.object({
 // two names.
 const upstreamHueSchema = z.number().int().min(0).max(UPSTREAM_HUE_DEGREES - 1);
 
+// Per-upstream peak/off-peak schedule override: 'inherit' follows each
+// model's catalog default, 'none' bills every model flat, otherwise a
+// pricing-schedule preset id. Validated here so a bad value is a 400 with
+// the known ids named, not a poisoned row.
+const peakScheduleOverrideSchema = z.string().refine(
+  (value): boolean => value === 'inherit' || value === 'none' || (KNOWN_PRICING_SCHEDULE_IDS as readonly string[]).includes(value),
+  { message: `peak_schedule_override must be 'inherit', 'none', or one of ${KNOWN_PRICING_SCHEDULE_IDS.join(', ')}` },
+);
+
 const upstreamBaseFields = {
   name: z.string().min(1),
   enabled: z.boolean().optional(),
@@ -392,6 +401,7 @@ const upstreamBaseFields = {
   model_prefix: modelPrefixSchema.optional(),
   hue: upstreamHueSchema,
   block_peak_priced_models: z.boolean().optional(),
+  peak_schedule_override: peakScheduleOverrideSchema.optional(),
 };
 
 // Create accepts a discriminated union on `kind` for per-provider config
@@ -434,6 +444,7 @@ export const updateUpstreamBody = z.object({
   model_prefix: modelPrefixSchema.optional(),
   hue: upstreamHueSchema.optional(),
   block_peak_priced_models: z.boolean().optional(),
+  peak_schedule_override: peakScheduleOverrideSchema.optional(),
   // Patches only carry field diffs, not per-kind shape validation — the
   // handler dispatches on the existing row's kind and enforces the shape
   // there (Copilot/Codex/Claude Code reject a config patch outright, since
@@ -572,6 +583,7 @@ export const previewModelsBody = z.object({
     disabled_public_model_ids: disabledPublicModelIdsSchema.optional(),
     model_prefix: modelPrefixSchema.optional(),
     block_peak_priced_models: z.boolean().optional(),
+    peak_schedule_override: peakScheduleOverrideSchema.optional(),
   }),
 });
 // --- ollama ---

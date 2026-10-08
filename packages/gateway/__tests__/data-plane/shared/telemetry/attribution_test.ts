@@ -12,6 +12,7 @@ describe('telemetryModelIdentity', () => {
       upstream: 'test-upstream',
       modelKey: 'raw-model',
       pricing,
+      peakScheduleId: null,
     });
   });
 });

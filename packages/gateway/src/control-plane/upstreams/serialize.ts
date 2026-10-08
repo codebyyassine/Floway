@@ -35,6 +35,7 @@ const serializeBase = (upstream: UpstreamRecord) => ({
   model_prefix: upstream.modelPrefix === null ? null : clone(upstream.modelPrefix),
   hue: upstream.hue,
   block_peak_priced_models: upstream.blockPeakPricedModels ?? false,
+  peak_schedule_override: upstream.peakScheduleOverride ?? 'inherit',
 });
 
 const stateless = (upstream: UpstreamRecord): null => {
@@ -227,6 +228,7 @@ const blueprintBase = (kind: UpstreamProviderKind) => ({
   proxy_fallback_list: [] as ProxyFallbackEntry[],
   model_prefix: null,
   block_peak_priced_models: false,
+  peak_schedule_override: 'inherit',
 });
 
 export const blueprintUpstreamRecord = (kind: UpstreamProviderKind): BlueprintSerializedUpstreamRecord => {

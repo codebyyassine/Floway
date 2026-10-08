@@ -9,7 +9,7 @@ import { applyCodexModelOverrides } from './model-overrides.ts';
 import { codexImageProviderModel, codexPlanSupportsImages, codexRawToProviderModel, fetchCodexCatalog } from './models.ts';
 import { assertCodexUpstreamState, findCodexAccountIndex, persistCodexRefreshTokenRotation, persistCodexTerminalState } from './state.ts';
 import { runInterceptors } from '@floway-dev/interceptor';
-import { getProviderRepo, resolveEffectiveFlags, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderOpenAIResponsesResult, type ProviderStreamResult, type UpstreamRecord } from '@floway-dev/provider';
+import { getProviderRepo, manualPeakSchedulesOf, resolveEffectiveFlags, type ProviderInstance, type Provider, type ProviderCallResult, type ProviderOpenAIResponsesResult, type ProviderStreamResult, type UpstreamRecord } from '@floway-dev/provider';
 
 // https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/codex-api/src/requests/headers.rs#L5-L12
 // https://github.com/openai/codex/blob/c607da9f371bb66a41cc772c6ddf1989d28137d3/codex-rs/codex-api/src/endpoint/responses.rs#L87-L96
@@ -169,6 +169,8 @@ export const createCodexProvider = (record: UpstreamRecord): Provider => {
     inboundHeaderAllowlist: INBOUND_HEADER_ALLOWLIST,
     disabledPublicModelIds: record.disabledPublicModelIds,
     blockPeakPricedModels: record.blockPeakPricedModels ?? false,
+    peakScheduleOverride: record.peakScheduleOverride,
+    manualPeakSchedules: manualPeakSchedulesOf(config),
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache === null ? null : {
       ...record.modelsCache,

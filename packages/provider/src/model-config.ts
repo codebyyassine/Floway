@@ -1,6 +1,6 @@
 import { type FlagOverrides, validateFlagOverridesRecord } from './flags.ts';
 import { validateUpstreamPath } from './join.ts';
-import { BILLING_METRICS, canonicalizePricingSelector, kindForEndpoints, MODEL_KINDS, parseNonNegativeDecimalString, RERANK_PROTOCOLS, type BillingMetric, type ChatModelInfo, type ModelEndpointKey, type ModelEndpoints, type ModelKind, type Modality, type ModelPricing, type OpaqueBlobCompatibilityScope, type PriceVector, type PricingSelector, type PublicModelLimits, type RerankProtocol, type RerankTarget, validateModelPricing } from '@floway-dev/protocols/common';
+import { BILLING_METRICS, canonicalizePricingSelector, kindForEndpoints, MODEL_KINDS, parseNonNegativeDecimalString, parsePricingScheduleId, RERANK_PROTOCOLS, type BillingMetric, type ChatModelInfo, type ModelEndpointKey, type ModelEndpoints, type ModelKind, type Modality, type ModelPricing, type OpaqueBlobCompatibilityScope, type PriceVector, type PricingSelector, type PublicModelLimits, type RerankProtocol, type RerankTarget, validateModelPricing } from '@floway-dev/protocols/common';
 
 // The catalog-side name for the wire chat metadata. Shape lives in
 // @floway-dev/protocols/common so PublicModel.chat and the upstream catalog
@@ -28,6 +28,11 @@ export interface UpstreamModelConfig {
   // Floway-internal (camelCase, not surfaced on PublicModel).
   upstreamModelId: string;
   publicModelId?: string;
+  // Explicit peak/off-peak schedule choice for a manual row: a preset id
+  // (`deepseek`, `zhipu-coding`, `qwen-night`), `null` for flat, absent to
+  // inherit (upstream override, then the notional-pricing fallback). Wins
+  // over the upstream override at resolution.
+  peakScheduleId?: string | null;
   // Layer 3 in resolveEffectiveFlags for a manual row: operator-declared
   // per-model override, applied on top of the upstream default +
   // operator upstream override. Absent / `{}` = no per-model override
@@ -295,6 +300,16 @@ export const opaqueBlobCompatibilityScopeField = (
   };
 };
 
+const peakScheduleField = (value: unknown, label: string): string | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  try {
+    return parsePricingScheduleId(value, label);
+  } catch (cause) {
+    throw new Error(`Malformed ${label}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+  }
+};
+
 const modelField = (value: unknown, label: string): UpstreamModelConfig => {
   if (!isRecord(value)) throw new Error(`Malformed ${label}: must be an object`);
   const pricing = pricingField(value.pricing, `${label}.pricing`);
@@ -303,6 +318,7 @@ const modelField = (value: unknown, label: string): UpstreamModelConfig => {
   const effectiveKind = kindForEndpoints(endpoints);
   const chat = chatField(value.chat, `${label}.chat`);
   const rerankTarget = rerankTargetField(value.rerankTarget, `${label}.rerankTarget`);
+  const peakScheduleId = peakScheduleField(value.peakScheduleId, `${label}.peakScheduleId`);
   if (chat !== undefined && kind !== 'chat') {
     throw new Error(`Malformed ${label}: chat field is only allowed when kind === 'chat'`);
   }
@@ -325,6 +341,7 @@ const modelField = (value: unknown, label: string): UpstreamModelConfig => {
       : {}),
     upstreamModelId: nonEmptyStringField(value.upstreamModelId, `${label}.upstreamModelId`),
     ...(value.publicModelId !== undefined ? { publicModelId: optionalStringField(value.publicModelId, `${label}.publicModelId`) } : {}),
+    ...(peakScheduleId !== undefined ? { peakScheduleId } : {}),
     ...(value.flagOverrides !== undefined ? { flagOverrides: flagOverridesField(value.flagOverrides, `${label}.flagOverrides`) } : {}),
   };
 };
@@ -332,4 +349,23 @@ const modelField = (value: unknown, label: string): UpstreamModelConfig => {
 export const modelsField = (value: unknown, providerLabel: string): UpstreamModelConfig[] => {
   if (!Array.isArray(value)) throw new Error(`Malformed ${providerLabel} upstream config: models must be an array`);
   return value.map((entry, i) => modelField(entry, `${providerLabel} models[${i}]`));
+};
+
+// Explicit manual-model peak/off-peak schedule choices by public model id,
+// for mirroring onto the provider instance. Only rows that set the field
+// appear (a `null` value is an explicit flat); absent means the row inherits.
+// Read at resolution so a manual choice wins over the upstream override
+// without the gateway needing manual/auto provenance off the model.
+export const manualPeakSchedulesOf = (config: unknown): Record<string, string | null> => {
+  if (!isRecord(config) || !Array.isArray(config.models)) return {};
+  const out: Record<string, string | null> = {};
+  for (const entry of config.models) {
+    if (!isRecord(entry)) continue;
+    const schedule = (entry as { peakScheduleId?: unknown }).peakScheduleId;
+    if (schedule === undefined) continue;
+    if (schedule !== null && typeof schedule !== 'string') continue;
+    const id = publicModelId(entry as unknown as UpstreamModelConfig);
+    if (id.length > 0) out[id] = schedule;
+  }
+  return out;
 };

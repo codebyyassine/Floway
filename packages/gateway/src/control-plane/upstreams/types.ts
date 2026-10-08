@@ -160,6 +160,7 @@ interface SerializedUpstreamRecordBase {
   model_prefix: ModelPrefixConfig | null;
   hue: number;
   block_peak_priced_models: boolean;
+  peak_schedule_override: string;
 }
 
 type RedactedCustomConfig = CustomConfigFields & { apiKeySet: boolean };

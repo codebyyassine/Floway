@@ -1,5 +1,5 @@
 import type { UsageQuantities } from '../../repo/types.ts';
-import { requestOnlyUsageMeasurement, tokenUsage, pricingPeriodForRequestTime, type UsageMeasurement } from '../shared/telemetry/usage.ts';
+import { requestOnlyUsageMeasurement, tokenUsage, pricingPeriodForSchedule, type UsageMeasurement } from '../shared/telemetry/usage.ts';
 import { parseDecimalString } from '@floway-dev/protocols/common';
 
 // OpenAI transcription responses discriminate usage by `type`. Token-based
@@ -20,7 +20,7 @@ const audioDurationMeasurement = (seconds: unknown, label: string): UsageMeasure
   };
 };
 
-export const openaiAudioTranscriptionUsageMeasurement = (body: unknown, now?: Date | null): UsageMeasurement => {
+export const openaiAudioTranscriptionUsageMeasurement = (body: unknown, now?: Date | null, scheduleId?: string | null): UsageMeasurement => {
   if (!body || typeof body !== 'object') return requestOnlyUsageMeasurement();
   if (!Object.hasOwn(body, 'usage')) {
     if (!Object.hasOwn(body, 'duration')) return requestOnlyUsageMeasurement();
@@ -77,7 +77,7 @@ export const openaiAudioTranscriptionUsageMeasurement = (body: unknown, now?: Da
       ...(audioTokens === undefined ? {} : { input_audio_tokens: parseDecimalString(String(audioTokens)) }),
     };
   }
-  const pricingPeriod = pricingPeriodForRequestTime(now);
+  const pricingPeriod = pricingPeriodForSchedule(scheduleId, now);
   return {
     quantities: {
       ...inputQuantities,
@@ -88,9 +88,9 @@ export const openaiAudioTranscriptionUsageMeasurement = (body: unknown, now?: Da
   };
 };
 
-export const measureOpenAIAudioTranscriptionUsage = (value: unknown, sourceApi: string, now: Date = new Date()): UsageMeasurement => {
+export const measureOpenAIAudioTranscriptionUsage = (value: unknown, sourceApi: string, now: Date = new Date(), scheduleId?: string | null): UsageMeasurement => {
   try {
-    return openaiAudioTranscriptionUsageMeasurement(value, now);
+    return openaiAudioTranscriptionUsageMeasurement(value, now, scheduleId);
   } catch (error) {
     console.warn(
       `audio-transcription: invalid usage in 2xx upstream response for ${sourceApi}; usage row will be request-only`,

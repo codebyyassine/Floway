@@ -12,6 +12,7 @@ export const reshapeModelForDashboard = (model: ProviderModel): ListedUpstreamMo
   ...(model.display_name !== undefined ? { display_name: model.display_name } : {}),
   ...(Object.keys(model.limits).length > 0 ? { limits: model.limits } : {}),
   ...(model.pricing ? { pricing: model.pricing } : {}),
+  ...(model.peakScheduleId !== undefined ? { peakScheduleId: model.peakScheduleId } : {}),
   ...(model.chat ? { chat: model.chat } : {}),
   opaqueBlobCompatibilityScope: model.opaqueBlobCompatibilityScope,
   ...(model.flagOverrides ? { flagOverrides: model.flagOverrides } : {}),

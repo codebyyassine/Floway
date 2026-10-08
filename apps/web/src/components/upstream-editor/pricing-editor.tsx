@@ -95,10 +95,12 @@ const issueAffectsEntry = (issue: ModelPricingIssue, index: number): boolean => 
   return true;
 };
 
-export function PricingEditor({ kind, onChange, readOnly, value }: {
+export function PricingEditor({ kind, onChange, readOnly, scheduleId, value }: {
   kind: ModelKind;
   onChange: (value: ModelPricing | undefined) => void;
   readOnly: boolean;
+  /** Effective peak schedule for the row (`null` = flat, hides the card). */
+  scheduleId?: string | null;
   value: ModelPricing | undefined;
 }) {
   const { t } = useTranslation();
@@ -252,7 +254,7 @@ export function PricingEditor({ kind, onChange, readOnly, value }: {
                     onChange={(_, data) => patchActive(draft => withEqualityCoordinate(draft, axis.id, data.value))}
                   />
                 </Field>
-                {isPricingPeriod && <PricingPeriodCard />}
+                {isPricingPeriod && scheduleId != null && <PricingPeriodCard scheduleId={scheduleId} />}
               </Fragment>;
             }
             const threshold = thresholdCoordinate(active, axis.id);

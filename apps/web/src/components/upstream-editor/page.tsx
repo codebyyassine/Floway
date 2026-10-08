@@ -75,6 +75,7 @@ export function UpstreamEditorPage({ data }: { data: UpstreamEditorLoaderData })
     enabled: z.boolean(),
     hue: z.number(),
     blockPeakPricedModels: z.boolean(),
+    peakScheduleOverride: z.string(),
     proxyFallbackList: z.any(),
     modelPrefix: z.any(),
     disabledPublicModelIds: z.array(z.string()),

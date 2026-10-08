@@ -123,7 +123,7 @@ export const passthroughServe = async (input: PassthroughServeContext): Promise<
       if (peakBlock !== null) {
         return passthroughApiError(
           c,
-          peakBlockedMessage({ model, retryAfterSeconds: peakBlock.retryAfterSeconds, nextOffPeak: peakBlock.nextOffPeak }),
+          peakBlockedMessage({ model, retryAfterSeconds: peakBlock.retryAfterSeconds, nextOffPeak: peakBlock.nextOffPeak, scheduleId: peakBlock.scheduleId }),
           429,
           new Headers({ 'Retry-After': String(peakBlock.retryAfterSeconds) }),
         );

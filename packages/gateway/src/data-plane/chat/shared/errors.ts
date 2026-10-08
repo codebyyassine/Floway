@@ -8,7 +8,7 @@ import type { ApiErrorResult, PerformanceTelemetryContext } from '@floway-dev/pr
 export type ChatServeFailure =
   | { readonly kind: 'model-missing'; readonly model: string; readonly failedUpstreams: readonly string[] }
   | { readonly kind: 'model-unsupported'; readonly model: string; readonly failedUpstreams: readonly string[] }
-  | { readonly kind: 'model-peak-blocked'; readonly model: string; readonly retryAfterSeconds: number; readonly nextOffPeak: string }
+  | { readonly kind: 'model-peak-blocked'; readonly model: string; readonly retryAfterSeconds: number; readonly nextOffPeak: string; readonly scheduleId: string }
   | { readonly kind: 'routing-unavailable'; readonly message: string };
 
 class ChatServeFailureError<TFailure extends { readonly kind: string }> extends Error {
@@ -63,12 +63,13 @@ export const noViableCandidateFailure = (
 // clients back off until the off-peak switch rather than failing over.
 export const peakBlockedFailure = (
   model: string,
-  block: { readonly retryAfterSeconds: number; readonly nextOffPeak: string },
+  block: { readonly retryAfterSeconds: number; readonly nextOffPeak: string; readonly scheduleId: string },
 ): ChatServeFailure => ({
   kind: 'model-peak-blocked',
   model,
   retryAfterSeconds: block.retryAfterSeconds,
   nextOffPeak: block.nextOffPeak,
+  scheduleId: block.scheduleId,
 });
 
 // Stamps `Retry-After` on a gateway-synthesized error so clients back off

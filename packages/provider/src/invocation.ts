@@ -2,7 +2,7 @@ import type { InternalModel, ProviderModel } from './model.ts';
 import type { Fetcher } from './options.ts';
 import type { Provider, OpenAIResponsesAction } from './provider.ts';
 import type { AnthropicMessagesPayload } from '@floway-dev/protocols/anthropic-messages';
-import type { AliasRules } from '@floway-dev/protocols/common';
+import { hasOffPeakPricingEntry, normalizePeakScheduleOverride, PEAK_SCHEDULE_INHERIT, PEAK_SCHEDULE_NONE, type AliasRules } from '@floway-dev/protocols/common';
 import type { GeminiGenerateContentPayload } from '@floway-dev/protocols/gemini-generate-content';
 import type { OpenAIChatCompletionsPayload } from '@floway-dev/protocols/openai-chat-completions';
 import type { CanonicalOpenAIResponsesPayload } from '@floway-dev/protocols/openai-responses';
@@ -56,6 +56,29 @@ export const providerModelOf = (candidate: ModelCandidate): ProviderModel => {
     throw new Error(`providerModelOf: model '${model.id}' has no providerModel for '${provider.upstreamId}'`);
   }
   return providerModel;
+};
+
+// Effective peak/off-peak schedule for one candidate (`null` = flat):
+// the manual-model choice wins, then the upstream override, then the
+// catalog default the provider emitted. Centralised so the peak gate,
+// usage stamping, and telemetry attribution resolve identically.
+//
+// Rows with off-peak pricing that name no schedule fall back to `deepseek`:
+// before this schedule layer existed the gateway stamped every model on
+// DeepSeek windows, so the fallback preserves that billing and gating for
+// legacy rows (custom mirrors included) until the operator picks otherwise.
+// https://api-docs.deepseek.com/quick_start/pricing
+export const peakScheduleIdOfCandidate = (candidate: ModelCandidate): string | null => {
+  const providerModel = providerModelOf(candidate);
+  // Manual-model choice wins, then the upstream override …
+  const manual = candidate.provider.manualPeakSchedules?.[candidate.model.id];
+  if (manual !== undefined) return manual;
+  const override = normalizePeakScheduleOverride(candidate.provider.peakScheduleOverride);
+  if (override !== PEAK_SCHEDULE_INHERIT) return override === PEAK_SCHEDULE_NONE ? null : override;
+  // … then the catalog default, with the legacy DeepSeek fallback for rows
+  // with off-peak pricing that name no schedule (see above).
+  if (providerModel.peakScheduleId !== undefined) return providerModel.peakScheduleId;
+  return hasOffPeakPricingEntry(providerModel.pricing) ? 'deepseek' : null;
 };
 
 // Per-protocol invocation shape passed to interceptors. Carries the

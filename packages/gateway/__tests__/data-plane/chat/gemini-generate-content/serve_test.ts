@@ -343,7 +343,7 @@ test('generate renders model-peak-blocked as a Google RPC 429 with a retry time'
   installRepo();
   queueResolution([], {
     sawModel: true,
-    peakBlock: { retryAfterSeconds: 10_800, nextOffPeak: '2026-09-29T10:00:00.000Z' },
+    peakBlock: { retryAfterSeconds: 10_800, nextOffPeak: '2026-09-29T10:00:00.000Z', scheduleId: 'deepseek' },
   });
 
   const result = await geminiGenerateContentServe.generate({

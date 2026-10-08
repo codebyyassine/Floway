@@ -11,6 +11,7 @@ import type { AnthropicMessagesStreamEvent } from '@floway-dev/protocols/anthrop
 import {
   getProviderRepo,
   headersForAnthropicMessagesCall,
+  manualPeakSchedulesOf,
   resolveEffectiveFlags,
   type ProviderInstance,
   type Provider,
@@ -125,6 +126,8 @@ export const createClaudeCodeProvider = (record: UpstreamRecord): Provider => {
     inboundHeaderAllowlist: INBOUND_HEADER_ALLOWLIST,
     disabledPublicModelIds: record.disabledPublicModelIds,
     blockPeakPricedModels: record.blockPeakPricedModels ?? false,
+    peakScheduleOverride: record.peakScheduleOverride,
+    manualPeakSchedules: manualPeakSchedulesOf(record.config),
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

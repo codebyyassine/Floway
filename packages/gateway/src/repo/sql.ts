@@ -67,7 +67,7 @@ import {
   encodeUpstreamModelsCache,
 } from './upstream-codecs.ts';
 import { serializeStoredConfig, serializeStoredState } from './upstream-json.ts';
-import { parseUpstreamHue, parseUpstreamKind, parseUpstreamPeakBlock } from './upstream-parse.ts';
+import { parseUpstreamHue, parseUpstreamKind, parseUpstreamPeakBlock, parseUpstreamPeakSchedule } from './upstream-parse.ts';
 import { usageMetricRows } from './usage-metrics.ts';
 import { querySqlUsageOverview } from './usage-overview-sql.ts';
 import { bucketForTtftMs, bucketForTpotUs } from '../shared/performance-histogram.ts';
@@ -883,7 +883,7 @@ const MODELS_CACHE_EPOCH_SQL = `CASE
   ELSE 0
 END`;
 
-const UPSTREAM_COLUMNS = 'id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, models_cache_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue, block_peak_priced_models';
+const UPSTREAM_COLUMNS = 'id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, models_cache_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue, block_peak_priced_models, peak_schedule_override';
 
 class SqlUpstreamRepo implements UpstreamRepo {
   constructor(private db: SqlDatabase) {}
@@ -905,7 +905,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
 
   async insertForModels(upstream: UpstreamRecord): Promise<StoredUpstreamRecord | null> {
     const row = await this.db
-      .prepare(`INSERT INTO upstreams (id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue, block_peak_priced_models) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING
+      .prepare(`INSERT INTO upstreams (id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue, block_peak_priced_models, peak_schedule_override) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING
         RETURNING ${UPSTREAM_COLUMNS}`)
       .bind(
         upstream.id,
@@ -923,6 +923,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
         upstream.modelPrefix === null ? null : JSON.stringify(upstream.modelPrefix),
         upstream.hue,
         sqliteBoolean(upstream.blockPeakPricedModels ?? false),
+        upstream.peakScheduleOverride ?? 'inherit',
       )
       .first<UpstreamRow>();
     return row === null ? null : toUpstreamRecord(row);
@@ -974,7 +975,8 @@ class SqlUpstreamRepo implements UpstreamRepo {
            proxy_fallback_list_json = ?,
            model_prefix_json = ?,
            hue = ?,
-           block_peak_priced_models = ?${modelsCacheUpdate}
+           block_peak_priced_models = ?,
+           peak_schedule_override = ?${modelsCacheUpdate}
          WHERE id = ?
            AND provider = ?
            AND name = ?
@@ -990,6 +992,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
            AND model_prefix_json IS ?
            AND hue = ?
            AND block_peak_priced_models = ?
+           AND peak_schedule_override = ?
          RETURNING ${UPSTREAM_COLUMNS}`,
       )
       .bind(
@@ -1008,6 +1011,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
         upstream.modelPrefix === null ? null : JSON.stringify(upstream.modelPrefix),
         upstream.hue,
         sqliteBoolean(upstream.blockPeakPricedModels ?? false),
+        upstream.peakScheduleOverride ?? 'inherit',
         upstream.id,
         previous.kind,
         previous.name,
@@ -1024,6 +1028,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
         storedRow.model_prefix_json,
         previous.hue,
         sqliteBoolean(previous.blockPeakPricedModels ?? false),
+        previous.peakScheduleOverride ?? 'inherit',
       )
       .first<UpstreamRow>();
     return row === null ? null : toUpstreamRecord(row);
@@ -1150,6 +1155,7 @@ interface UpstreamRow {
   model_prefix_json: string | null;
   hue: number;
   block_peak_priced_models: number;
+  peak_schedule_override: string;
 }
 
 const toUpstreamRecord = (row: UpstreamRow): StoredUpstreamRecord => {
@@ -1158,6 +1164,11 @@ const toUpstreamRecord = (row: UpstreamRow): StoredUpstreamRecord => {
   if (!Number.isSafeInteger(row.config_version) || row.config_version < 1) {
     throw new Error(`Invalid upstream config version for ${row.id}`);
   }
+  // 'inherit' is the absent default: omitting it keeps hand-built records
+  // (which leave the optional field out) comparable against hydrated rows in
+  // the replace-for-models CAS check. Every reader normalizes absent to
+  // 'inherit'.
+  const peakScheduleOverride = parseUpstreamPeakSchedule(row.id, row.peak_schedule_override);
 
   return {
     id: row.id,
@@ -1177,6 +1188,7 @@ const toUpstreamRecord = (row: UpstreamRow): StoredUpstreamRecord => {
     modelPrefix: parseModelPrefix(row.id, row.model_prefix_json),
     hue: parseUpstreamHue(row.id, row.hue),
     blockPeakPricedModels: parseUpstreamPeakBlock(row.id, row.block_peak_priced_models),
+    ...(peakScheduleOverride === 'inherit' ? {} : { peakScheduleOverride }),
   };
 };
 

@@ -2,7 +2,7 @@ import { isEqual, uniqWith } from 'es-toolkit';
 
 import { internalModelFromProviderModel } from './catalog.ts';
 import { readUpstreamModelsSnapshotAndScheduleRefresh } from './models-cache.ts';
-import { isPeakPricedModel, peakBlockAfter, type PeakBlock } from './peak-gate.ts';
+import { candidatePassesPeakGate, peakBlockForCandidate, type PeakBlock } from './peak-gate.ts';
 import { listModelProviders, type GatewayProvider } from './registry.ts';
 import { createPerRequestFetcher } from '../../dial/per-request.ts';
 import { createModelsRefreshScheduler, type ModelsRefreshScheduler } from '../../execution/models-refresh.ts';
@@ -10,7 +10,7 @@ import { getRepo } from '../../repo/index.ts';
 import type { ModelAliasRecord } from '../../repo/types.ts';
 import type { BackgroundScheduler } from '@floway-dev/platform';
 import type { ModelKind } from '@floway-dev/protocols/common';
-import { providerModelOf, type Fetcher, type ModelCandidate } from '@floway-dev/provider';
+import { type Fetcher, type ModelCandidate } from '@floway-dev/provider';
 
 // Resolve one inbound id against one upstream. The upstream's
 // `modelPrefix.addressable` configuration decides which lookup branches
@@ -139,23 +139,25 @@ const resolveRealCandidates = (
 
 // Peak-priced models stay routable off-peak and on upstreams that did not
 // opt into blocking. During peak the gate drops every candidate whose
-// upstream opted in and whose own model carries an `off-peak` pricing entry,
-// and reports the block only when nothing remains — a surviving candidate
-// from an upstream without the toggle still serves. `sawModel` is untouched:
-// the id is known, it is just not servable right now.
+// upstream opted in and whose own effective schedule (manual choice, then
+// upstream override, then catalog default) says peak, and reports the block
+// only when nothing remains — a surviving candidate from an upstream without
+// the toggle still serves. `sawModel` is untouched: the id is known, it is
+// just not servable right now. When candidates follow different schedules,
+// the reported block is the earliest off-peak minute across them.
 const applyPeakGate = (
   candidates: readonly ModelCandidate[],
   now: Date,
 ): { readonly candidates: readonly ModelCandidate[]; readonly peakBlock: PeakBlock | null } => {
-  const block = peakBlockAfter(now);
-  if (block === null) return { candidates, peakBlock: null };
-  const kept = candidates.filter(candidate => {
-    if (!(candidate.provider.blockPeakPricedModels ?? false)) return true;
-    return !isPeakPricedModel(providerModelOf(candidate).pricing);
-  });
+  const kept = candidates.filter(candidate => candidatePassesPeakGate(candidate, now));
   if (kept.length === candidates.length) return { candidates, peakBlock: null };
   if (kept.length > 0) return { candidates: kept, peakBlock: null };
-  return { candidates: kept, peakBlock: block };
+  let earliest: PeakBlock | null = null;
+  for (const candidate of candidates) {
+    const block = peakBlockForCandidate(candidate, now);
+    if (block !== null && (earliest === null || block.retryAfterSeconds < earliest.retryAfterSeconds)) earliest = block;
+  }
+  return { candidates: kept, peakBlock: earliest };
 };
 
 // Target order for an alias walk: `first-available` yields declaration
@@ -219,7 +221,7 @@ export const enumerateModelCandidates = async ({
   // Threaded into the per-request fetcher so colo-scoped fallback entries
   // can be honoured at dial time.
   runtimeLocation: string;
-  // Request time for the DeepSeek peak gate. Defaults to now; tests inject
+  // Request time for the peak gate. Defaults to now; tests inject
   // a fixed instant to pin the pricing period.
   now?: Date;
 }): Promise<{

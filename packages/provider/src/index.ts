@@ -6,7 +6,7 @@ export type {
   ModelCandidate,
   OpenAIResponsesInvocation,
 } from './invocation.ts';
-export { providerModelOf } from './invocation.ts';
+export { peakScheduleIdOfCandidate, providerModelOf } from './invocation.ts';
 
 export type { InternalDebugError } from './error.ts';
 export { toInternalDebugError } from './error.ts';
@@ -91,6 +91,7 @@ export {
   chatField,
   endpointsField,
   isRecord,
+  manualPeakSchedulesOf,
   modelsField,
   nonEmptyStringField,
   optionalStringField,

@@ -20,6 +20,7 @@ import { TooltipIconButton } from '../ui/tooltip-icon-button';
 import { HuePicker } from '../upstreams/hue-picker';
 import type { UpstreamModelConfig } from '@floway-dev/provider/model-config';
 import { MODEL_PREFIX_MAX_LENGTH } from '@floway-dev/provider/model-prefix';
+import { UPSTREAM_PEAK_SCHEDULE_OPTIONS, type UpstreamPeakScheduleOption } from './peak-schedules';
 
 const { Button, Checkbox, Field, MessageBar, MessageBarBody, Option, Text } = fluentComponents;
 
@@ -122,14 +123,28 @@ function UpstreamHueEditor({ kind }: { kind: UpstreamRecord['kind'] }) {
 function PeakPricingEditor() {
   const { t } = useTranslation();
   const { control } = useFormContext<UpstreamEditorValues>();
-  return <Controller control={control} name="blockPeakPricedModels" render={({ field }) => (
-    <SwitchSetting
-      checked={field.value}
-      description={t('dashboard.upstreamEditor.peakPricing.description')}
-      label={t('dashboard.upstreamEditor.peakPricing.label')}
-      onChange={field.onChange}
-    />
-  )} />;
+  return <div className="grid gap-3">
+    <Controller control={control} name="peakScheduleOverride" render={({ field }) => (
+      <Field label={t('dashboard.upstreamEditor.peakPricing.schedule')} hint={t('dashboard.upstreamEditor.peakPricing.scheduleHint')}>
+        <Dropdown
+          aria-label={t('dashboard.upstreamEditor.peakPricing.schedule')}
+          selectedOptions={[field.value]}
+          value={t(`dashboard.upstreamEditor.peakSchedules.${field.value as UpstreamPeakScheduleOption}`)}
+          onOptionSelect={(_, data) => data.optionValue !== undefined && field.onChange(data.optionValue)}
+        >
+          {UPSTREAM_PEAK_SCHEDULE_OPTIONS.map(id => <Option key={id} value={id}>{t(`dashboard.upstreamEditor.peakSchedules.${id}`)}</Option>)}
+        </Dropdown>
+      </Field>
+    )} />
+    <Controller control={control} name="blockPeakPricedModels" render={({ field }) => (
+      <SwitchSetting
+        checked={field.value}
+        description={t('dashboard.upstreamEditor.peakPricing.description')}
+        label={t('dashboard.upstreamEditor.peakPricing.label')}
+        onChange={field.onChange}
+      />
+    )} />
+  </div>;
 }
 
 // The sorted union of every model id this upstream can disable, which

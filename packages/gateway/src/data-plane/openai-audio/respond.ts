@@ -23,7 +23,7 @@ const respondNonStreaming = async ({ ctx, sourceApi, response, performance, iden
       );
     }
     if (parsed !== undefined) {
-      measurement = measureOpenAIAudioTranscriptionUsage(parsed, sourceApi);
+      measurement = measureOpenAIAudioTranscriptionUsage(parsed, sourceApi, new Date(), identity.peakScheduleId);
     }
   }
   ctx.dump?.success(identity, measurement.dumpTokenUsage);
@@ -57,7 +57,7 @@ const respondStreaming = ({ c, ctx, sourceApi, response, performance, identity }
           ctx.dump?.frame(eventFrame(event));
           if (isOpenAIAudioTranscriptionDoneEvent(event)) {
             terminalEventSeen = true;
-            measurement = measureOpenAIAudioTranscriptionUsage(event, sourceApi);
+            measurement = measureOpenAIAudioTranscriptionUsage(event, sourceApi, new Date(), identity.peakScheduleId);
             yield frame;
             return;
           }

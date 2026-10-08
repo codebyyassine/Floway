@@ -108,7 +108,7 @@ const zhHansCN = {
         requests: '查看请求记录、状态、路由结果和错误详情',
         usage: '按用户、API 密钥、模型和上游查看 token 用量与流量',
         performance: '观察延迟、吞吐和上游性能信号',
-        pricingPeriod: '查看 DeepSeek 实时高峰 / 低谷计费时段与下次切换时间',
+        pricingPeriod: '查看实时高峰 / 低谷计费时段与下次切换时间',
         users: '管理控制台用户、权限、观测访问和上游范围',
         backupRestore: '下载此网关全部数据的完整副本，或从此前的导出中恢复',
         unavailable: '无法加载此视图',
@@ -538,7 +538,17 @@ const zhHansCN = {
         peakPricing: {
           label: '在高峰时段阻止高峰计费模型',
           description:
-              '在 DeepSeek 高峰计费生效期间，带有低谷价格的模型请求将被拒绝并返回重试时间，而不会按高峰价格计费。',
+              '当上游的高峰时段生效时，带有低谷价格的模型请求将被拒绝并返回重试时间，而不会按高峰价格计费。',
+          schedule: '高峰时段',
+          scheduleHint:
+              '模型默认遵循各模型的目录时段；无表示所有模型统一按固定价格计费；预设将所有模型强制使用该厂商的高峰窗口。',
+        },
+        peakSchedules: {
+          inherit: '模型默认',
+          none: '无（固定价格）',
+          deepseek: 'DeepSeek',
+          'zhipu-coding': 'Zhipu coding',
+          'qwen-night': 'Qwen night',
         },
         hue: {
           description: '选择在控制台中区分此上游的颜色。',
@@ -780,6 +790,8 @@ const zhHansCN = {
           pricing: '定价',
           pricingHint:
               '仅用于 Floway 的用量统计和费用估算，并展示在 Usage 页面；不会修改上游计费或请求参数。价格单位为美元/百万 Token。',
+          peakSchedule: '高峰时段',
+          peakScheduleHint: '继承按上游时段、目录默认依次确定；无表示该模型固定价格；预设将该模型强制使用该厂商的高峰窗口。',
           pricingRules: '定价规则',
           pricingEmptyHint: '先设置基础价格，之后可按服务层级、Token 数量或计费时段添加条件价格。',
           setupPricing: '设置基础价格',
@@ -811,6 +823,7 @@ const zhHansCN = {
             windowsHeading: '每日时段（UTC）',
             scopeDaily: '每日',
             scopeWeekdays: '周一至周五',
+            scopeWeekends: '周六至周日',
           },
           pricingRates: '价格',
           pricingRatesHint: '单位为美元/百万 Token。每条规则至少填写一项，并保持价格类型一致。',
