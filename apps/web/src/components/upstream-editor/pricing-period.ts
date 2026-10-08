@@ -26,8 +26,6 @@ const DAY_MS = 86_400_000;
 const BEIJING_OFFSET_MS = 8 * HOUR_MS;
 const CLOCK_TICK_MS = 1_000;
 
-const HOLIDAY_DATES: ReadonlySet<string> = new Set<string>(DEEPSEEK_HOLIDAY_DATES);
-
 const pad = (part: number): string => String(part).padStart(2, '0');
 
 // A calendar date read as UTC midnight, so date arithmetic stays in the frame
@@ -161,9 +159,9 @@ export const usePricingPeriod = (scheduleId: string, injected?: number): Pricing
     holidayNote: stretch === null
       ? null
       : t(
-        'dashboard.upstreamEditor.models.pricingPeriodCard.holidayNote',
-        { range: holidayRangeText(stretch, formatHolidayDay) },
-      ),
+          'dashboard.upstreamEditor.models.pricingPeriodCard.holidayNote',
+          { range: holidayRangeText(stretch, formatHolidayDay) },
+        ),
     hour: (now - dateInstant(utcDateOf(now))) / HOUR_MS,
     next: t(
       period === 'peak'

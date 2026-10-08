@@ -3,6 +3,7 @@ import { afterEach, test, vi } from 'vitest';
 import { TEST_OPENAI_RESPONSES_RETENTION_SECONDS, testOpenAIResponsesStatePolicy } from './test-policy.ts';
 import { createOpenAIResponsesHttpStore, MemoryOpenAIResponsesStatefulBacking, LayeredOpenAIResponsesStatefulStore } from '../../../../src/data-plane/chat/openai-responses/items/store.ts';
 import type { ChatGatewayCtx } from '../../../../src/data-plane/chat/shared/gateway-ctx.ts';
+import type { PeakBlock } from '../../../../src/data-plane/providers/peak-gate.ts';
 import { initRepo } from '../../../../src/repo/index.ts';
 import type { StoredOpenAIResponsesItem, StoredOpenAIResponsesSnapshot } from '../../../../src/repo/types.ts';
 import { InMemoryRepo } from '../../../repo/memory.ts';
@@ -23,7 +24,7 @@ interface QueuedResolution {
   readonly candidates: readonly ModelCandidate[];
   readonly sawModel: boolean;
   readonly failedUpstreams: readonly string[];
-  readonly peakBlock: { readonly retryAfterSeconds: number; readonly nextOffPeak: string } | null;
+  readonly peakBlock: PeakBlock | null;
 }
 const resolutionsQueue: QueuedResolution[] = [];
 const lastResolveCall: { model?: string } = {};
@@ -47,7 +48,7 @@ const API_KEY_ID = 'key_serve_test';
 
 const queueResolution = (
   candidates: readonly ModelCandidate[],
-  extra: { sawModel?: boolean; aliasRules?: AliasRules; peakBlock?: { readonly retryAfterSeconds: number; readonly nextOffPeak: string } | null } = {},
+  extra: { sawModel?: boolean; aliasRules?: AliasRules; peakBlock?: PeakBlock | null } = {},
 ): void => {
   const rules = extra.aliasRules;
   resolutionsQueue.push({

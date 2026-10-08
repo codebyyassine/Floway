@@ -9,6 +9,7 @@ import { CHAT_ENDPOINT_KEYS, endpointOptionsFor, IMAGE_ENDPOINT_KEYS, shapeForKi
 import { FeatureFlagsEditor } from './feature-flags';
 import { type ModelValidationField, modelValidationIssues } from './model-validation';
 import { useMonoLabelClass } from './mono-label';
+import { MODEL_PEAK_SCHEDULE_OPTIONS, peakScheduleOptionOf, peakScheduleValueOf, type ModelPeakScheduleOption } from './peak-schedules';
 import { PricingEditor } from './pricing-editor';
 import { RerankTargetEditor } from './rerank-target-editor';
 import { EditorSection } from './section';
@@ -19,9 +20,8 @@ import { ChoiceGroup } from '../ui/choice-group';
 import { Checkbox, Dropdown, Input, Switch } from '../ui/fluent-form-controls';
 import { CHECKBOX_LIST_CLASS, TWO_COLUMN_FORM_CLASS } from '../ui/layout';
 import { SectionHeader } from '../ui/section-header';
-import { MODEL_PEAK_SCHEDULE_OPTIONS, peakScheduleOptionOf, peakScheduleValueOf, type ModelPeakScheduleOption } from './peak-schedules';
-import type { UpstreamChatModelConfig, UpstreamModelConfig } from '@floway-dev/provider/model-config';
 import { hasOffPeakPricingEntry, normalizePeakScheduleOverride } from '@floway-dev/protocols/common';
+import type { UpstreamChatModelConfig, UpstreamModelConfig } from '@floway-dev/provider/model-config';
 
 const {
   Button,

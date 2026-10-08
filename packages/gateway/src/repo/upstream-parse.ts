@@ -3,9 +3,9 @@
 // error attribution and validation policy stay uniform across SELECT
 // shapes.
 
+import { normalizePeakScheduleOverride } from '@floway-dev/protocols/common';
 import type { UpstreamProviderKind } from '@floway-dev/provider';
 import { assertUpstreamProviderKind, normalizeUpstreamHue } from '@floway-dev/provider';
-import { normalizePeakScheduleOverride } from '@floway-dev/protocols/common';
 
 export const parseUpstreamKind = (id: string, value: string | null): UpstreamProviderKind => {
   try {

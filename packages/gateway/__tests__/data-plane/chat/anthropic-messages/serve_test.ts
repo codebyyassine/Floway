@@ -1,5 +1,6 @@
 import { afterEach, test, vi } from 'vitest';
 
+import type { PeakBlock } from '../../../../src/data-plane/providers/peak-gate.ts';
 import { initRepo } from '../../../../src/repo/index.ts';
 import { InMemoryRepo } from '../../../repo/memory.ts';
 import { mockChatGatewayCtx } from '../../../test-utils/gateway-ctx.ts';
@@ -15,7 +16,7 @@ interface QueuedResolution {
   readonly candidates: readonly ModelCandidate[];
   readonly sawModel: boolean;
   readonly failedUpstreams: readonly string[];
-  readonly peakBlock: { readonly retryAfterSeconds: number; readonly nextOffPeak: string } | null;
+  readonly peakBlock: PeakBlock | null;
 }
 const resolutionsQueue: QueuedResolution[] = [];
 const lastResolveCall: { model?: string } = {};
@@ -38,7 +39,7 @@ const API_KEY_ID = 'key_messages_serve_test';
 
 const queueResolution = (
   candidates: readonly ModelCandidate[],
-  extra: { sawModel?: boolean; aliasRules?: AliasRules; peakBlock?: { readonly retryAfterSeconds: number; readonly nextOffPeak: string } | null } = {},
+  extra: { sawModel?: boolean; aliasRules?: AliasRules; peakBlock?: PeakBlock | null } = {},
 ): void => {
   const rules = extra.aliasRules;
   resolutionsQueue.push({

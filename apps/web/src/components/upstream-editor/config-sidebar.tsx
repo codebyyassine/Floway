@@ -4,6 +4,7 @@ import { Controller, useFieldArray, useFormContext, useWatch } from 'react-hook-
 
 import type { RuntimeInfo, UpstreamEditorValues } from './data';
 import { modelPrefixIsValid, publicModelId } from './data';
+import { UPSTREAM_PEAK_SCHEDULE_OPTIONS, type UpstreamPeakScheduleOption } from './peak-schedules';
 import { ApiPathsSection, ProviderConfigSection } from './provider-config';
 import { EditorSection } from './section';
 import type { ProxyRecord, UpstreamRecord } from '../../api/types';
@@ -20,7 +21,6 @@ import { TooltipIconButton } from '../ui/tooltip-icon-button';
 import { HuePicker } from '../upstreams/hue-picker';
 import type { UpstreamModelConfig } from '@floway-dev/provider/model-config';
 import { MODEL_PREFIX_MAX_LENGTH } from '@floway-dev/provider/model-prefix';
-import { UPSTREAM_PEAK_SCHEDULE_OPTIONS, type UpstreamPeakScheduleOption } from './peak-schedules';
 
 const { Button, Checkbox, Field, MessageBar, MessageBarBody, Option, Text } = fluentComponents;
 
