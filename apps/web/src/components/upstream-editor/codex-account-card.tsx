@@ -9,7 +9,7 @@ import { useNow } from '../../lib/use-now';
 import { StatusBadge } from '../ui/status-badge';
 import { TruncationTooltip } from '../ui/truncation-tooltip';
 import { shortAccountId } from '../upstreams/account-id';
-import { accountStatus, type CodexRecord, codexRenewable, findCredential, latestCredits, planLabel, quotaEntries } from '../upstreams/codex-account';
+import { accountStatus, type CodexRecord, codexRenewable, findCredential, latestCredits, latestQuotaEntry, planLabel, quotaEntries } from '../upstreams/codex-account';
 import { ProviderIcon } from '../upstreams/provider-badge';
 import { QuotaProgressRow } from '../upstreams/quota-progress-row';
 import { WALL_CLOCK_REFRESH_MS } from '../upstreams/subscription-quota';
@@ -28,8 +28,9 @@ export function CodexAccountCard({ record }: { record: CodexRecord }) {
     ? Object.fromEntries(Object.entries(record.codex_quota ?? {}).filter(([, snapshot]) => Date.parse(snapshot.observed_at) > reset.at))
     : record.codex_quota;
   const entries = quotaEntries(visibleQuota, now);
+  const entry = latestQuotaEntry(entries);
   const credits = latestCredits(visibleQuota);
-  const status = accountStatus(lookup, entries);
+  const status = accountStatus(lookup, entry === null ? [] : [entry]);
 
   const statusLabel = status.reason === 'heavy'
     ? t('dashboard.upstreamEditor.codex.status.heavy', { percent: status.percent })
@@ -75,9 +76,9 @@ export function CodexAccountCard({ record }: { record: CodexRecord }) {
 
     {credential && <Text size={200} className="text-fui-fg3">{bearerLabel}</Text>}
 
-    {entries.length === 0
+    {entry === null
       ? <Text size={200} className="text-fui-fg3">{t('dashboard.upstreamEditor.codex.noSnapshot')}</Text>
-      : entries.map(entry => <section className="grid gap-3 border-0 border-t border-solid border-fui-divider py-3 first:border-t-0" key={entry.key}>
+      : <section className="grid gap-3 border-0 border-t border-solid border-fui-divider py-3 first:border-t-0" key={entry.key}>
           <div className="flex items-baseline justify-between gap-3 min-w-0">
             <TruncationTooltip content={entry.label} relationship="label">
               {measureRef => <Text block className="winui-focus-rect" ref={measureRef} truncate weight="semibold" tabIndex={0} wrap={false}>{entry.label}</Text>}
@@ -103,7 +104,7 @@ export function CodexAccountCard({ record }: { record: CodexRecord }) {
             </Text>}
             <Text size={200} className="text-fui-fg3">{t('dashboard.upstreamEditor.codex.observed', { time: dateTime(entry.observedAt, locale) })}</Text>
           </div>
-        </section>)}
+        </section>}
 
     {credential?.state_updated_at && <Text size={200} className="text-fui-fg3 border-0 border-t border-solid border-fui-divider pt-3">
       {t('dashboard.upstreamEditor.codex.stateUpdated', { time: dateTime(credential.state_updated_at, locale) })}

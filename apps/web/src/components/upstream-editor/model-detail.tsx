@@ -259,6 +259,7 @@ export function ModelDetail({
             readOnly={fieldsReadOnly}
             kind={row.config.kind}
             onChange={pricing => patch({ pricing })}
+            upstreamKind={record.kind}
             value={row.config.pricing}
           />
         </EditorSection>

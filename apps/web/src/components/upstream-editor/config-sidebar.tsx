@@ -4,6 +4,7 @@ import { Controller, useFieldArray, useFormContext, useWatch } from 'react-hook-
 
 import type { RuntimeInfo, UpstreamEditorValues } from './data';
 import { modelPrefixIsValid, publicModelId } from './data';
+import { PRICING_PERIOD_UPSTREAM_KINDS } from './pricing-editor';
 import { ApiPathsSection, ProviderConfigSection } from './provider-config';
 import { EditorSection } from './section';
 import type { ProxyRecord, UpstreamRecord } from '../../api/types';
@@ -104,9 +105,9 @@ export function UpstreamConfigSidebar({
         <EditorSection title={t('dashboard.upstreamEditor.sections.disabledModels')} description={t('dashboard.upstreamEditor.disabledModelsHint')}>
           <DisabledModelsCombobox catalogAvailable={catalogAvailable} discovered={discovered} />
         </EditorSection>
-        <EditorSection title={t('dashboard.upstreamEditor.sections.peakPricing')}>
+        {(PRICING_PERIOD_UPSTREAM_KINDS.includes(record.kind) || record.block_peak_priced_models === true) && <EditorSection title={t('dashboard.upstreamEditor.sections.peakPricing')}>
           <PeakPricingEditor />
-        </EditorSection>
+        </EditorSection>}
       </aside>
     </div>
   </ScrollArea>;

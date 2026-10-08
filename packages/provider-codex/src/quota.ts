@@ -154,9 +154,37 @@ export const putCodexQuota = async (
     const state = readCodexUpstreamState(current);
     const idx = findCodexAccountIndex(state, accountId);
     if (idx < 0) throw new Error(`putCodexQuota: Codex account ${accountId} not found in upstream ${upstreamId}`);
+    const existing = state.accounts[idx].quotaSnapshot ?? {};
+    const incomingKey = codexQuotaActiveLimitKey(snapshot);
+    let key = incomingKey;
+    let data = snapshot;
+    const namedKeys = Object.keys(existing).filter(candidate => candidate !== CODEX_QUOTA_UNKNOWN_ACTIVE_LIMIT);
+    if (incomingKey === CODEX_QUOTA_UNKNOWN_ACTIVE_LIMIT && namedKeys.length > 0) {
+      // The token-free usage probe carries no `active_limit`, while the
+      // passive response headers name one. Writing the probe under `unknown`
+      // alongside a named bucket forks the dashboard card by source rather
+      // than by limit, so project it into the latest named bucket instead.
+      const latestKey = namedKeys.toSorted((left, right) => {
+        const leftObserved = Date.parse(existing[left].data.observed_at);
+        const rightObserved = Date.parse(existing[right].data.observed_at);
+        if (Number.isFinite(leftObserved) && Number.isFinite(rightObserved) && leftObserved !== rightObserved) {
+          return rightObserved - leftObserved;
+        }
+        if (existing[left].fetchedAt !== existing[right].fetchedAt) return existing[right].fetchedAt - existing[left].fetchedAt;
+        return left.localeCompare(right);
+      })[0]!;
+      key = latestKey;
+      data = { ...snapshot, active_limit: existing[latestKey].data.active_limit ?? latestKey };
+    }
+    const next: Record<string, { fetchedAt: number; data: CodexQuotaSnapshot }> = { ...existing, [key]: { fetchedAt, data } };
+    if (incomingKey !== CODEX_QUOTA_UNKNOWN_ACTIVE_LIMIT && next[CODEX_QUOTA_UNKNOWN_ACTIVE_LIMIT] !== undefined) {
+      // The first named reading supersedes the placeholder `unknown` the probe
+      // wrote before any header named a limit.
+      delete next[CODEX_QUOTA_UNKNOWN_ACTIVE_LIMIT];
+    }
     return replaceCodexAccount(state, idx, account => ({
       ...account,
-      quotaSnapshot: { ...account.quotaSnapshot ?? {}, [codexQuotaActiveLimitKey(snapshot)]: { fetchedAt, data: snapshot } },
+      quotaSnapshot: next,
     }));
   });
 };

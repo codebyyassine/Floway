@@ -387,6 +387,26 @@ describe('putCodexQuota', () => {
     expect(written?.unknown.data).toEqual(snap);
   });
 
+  test('projects an unnamed reading into the latest named bucket instead of forking unknown', async () => {
+    const premium: CodexQuotaSnapshot = { observed_at: '2026-06-05T00:00:00.000Z', active_limit: 'premium', primary_used_percent: 10 };
+    current = makeRecord({ accounts: [{ ...baseAccount, quotaSnapshot: { premium: { fetchedAt: 1, data: premium } } }] });
+    const probe: CodexQuotaSnapshot = { observed_at: '2026-06-05T01:00:00.000Z', primary_used_percent: 42, secondary_used_percent: 45 };
+    await putCodexQuota(upstreamId, accountId, probe);
+    const written = (current!.state as CodexUpstreamState).accounts[0].quotaSnapshot;
+    expect(Object.keys(written ?? {}).sort()).toEqual(['premium']);
+    expect(written?.premium.data).toEqual({ ...probe, active_limit: 'premium' });
+  });
+
+  test('drops the placeholder unknown when the first named reading arrives', async () => {
+    const placeholder: CodexQuotaSnapshot = { observed_at: '2026-06-05T00:00:00.000Z', primary_used_percent: 42 };
+    current = makeRecord({ accounts: [{ ...baseAccount, quotaSnapshot: { unknown: { fetchedAt: 1, data: placeholder } } }] });
+    const premium: CodexQuotaSnapshot = { observed_at: '2026-06-05T01:00:00.000Z', active_limit: 'premium', primary_used_percent: 10 };
+    await putCodexQuota(upstreamId, accountId, premium);
+    const written = (current!.state as CodexUpstreamState).accounts[0].quotaSnapshot;
+    expect(Object.keys(written ?? {}).sort()).toEqual(['premium']);
+    expect(written?.premium.data).toEqual(premium);
+  });
+
   test('throws when the upstream disappeared mid-flight', async () => {
     current = null;
     await expect(putCodexQuota(upstreamId, accountId, { observed_at: 'now' })).rejects.toThrow(/disappeared/);

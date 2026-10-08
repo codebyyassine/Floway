@@ -11,6 +11,7 @@ describe('read-only pricing editor', () => {
         kind="chat"
         onChange={vi.fn()}
         readOnly
+        upstreamKind="custom"
         value={{
           entries: [
             { rates: { input_tokens: '0.000001' } },
@@ -31,6 +32,7 @@ describe('read-only pricing editor', () => {
         kind="chat"
         onChange={vi.fn()}
         readOnly
+        upstreamKind="custom"
         value={{
           entries: [
             { rates: { input_tokens: '0.000001' } },
@@ -53,5 +55,44 @@ describe('read-only pricing editor', () => {
 
     expect(view.getByText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodHint'))).toBeTruthy();
     expect(view.getByPlaceholderText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodPlaceholder'))).toBeTruthy();
+  });
+
+  it('hides the DeepSeek pricing period field on a Codex model without off-peak pricing', () => {
+    const view = renderInApp(
+      <PricingEditor
+        kind="chat"
+        onChange={vi.fn()}
+        readOnly
+        upstreamKind="codex"
+        value={{
+          entries: [
+            { rates: { input_tokens: '0.000001' } },
+            { selector: { serviceTier: 'priority' }, rates: { input_tokens: '0.000002' } },
+          ],
+        }}
+      />,
+    );
+
+    expect(() => view.getByText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodHint'))).toThrow();
+    expect(() => view.getByPlaceholderText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodPlaceholder'))).toThrow();
+  });
+
+  it('keeps an existing off-peak entry editable on a Codex model that already uses it', () => {
+    const view = renderInApp(
+      <PricingEditor
+        kind="chat"
+        onChange={vi.fn()}
+        readOnly
+        upstreamKind="codex"
+        value={{
+          entries: [
+            { rates: { input_tokens: '0.000001' } },
+            { selector: { pricingPeriod: 'off-peak' }, rates: { input_tokens: '0.0000005' } },
+          ],
+        }}
+      />,
+    );
+
+    expect(view.getByText(i18n.t('dashboard.upstreamEditor.models.pricingPeriodHint'))).toBeTruthy();
   });
 });

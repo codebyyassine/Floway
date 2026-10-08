@@ -20,6 +20,7 @@ import {
   type PricingField,
 } from './pricing-model';
 import { PricingPeriodCard } from './pricing-period-card';
+import type { UpstreamRecord } from '../../api/types';
 import { fluentComponents } from '../../fluent';
 import { useTranslation } from '../../i18n/translation';
 import { EmptyState } from '../ui/empty-state';
@@ -95,10 +96,13 @@ const issueAffectsEntry = (issue: ModelPricingIssue, index: number): boolean => 
   return true;
 };
 
-export function PricingEditor({ kind, onChange, readOnly, value }: {
+export const PRICING_PERIOD_UPSTREAM_KINDS: readonly UpstreamRecord['kind'][] = ['azure', 'custom', 'ollama', 'opencode-go'];
+
+export function PricingEditor({ kind, onChange, readOnly, upstreamKind, value }: {
   kind: ModelKind;
   onChange: (value: ModelPricing | undefined) => void;
   readOnly: boolean;
+  upstreamKind: UpstreamRecord['kind'];
   value: ModelPricing | undefined;
 }) {
   const { t } = useTranslation();
@@ -119,6 +123,16 @@ export function PricingEditor({ kind, onChange, readOnly, value }: {
   const fields = useMemo(() => visiblePricingFields(drafts, kind), [drafts, kind]);
   const issues = useMemo(() => collectDraftIssues(drafts, value), [drafts, value]);
   const baseIndex = drafts.findIndex(isBaseEntry);
+  // DeepSeek peak/off-peak is the only `pricingPeriod` schedule Floway knows:
+  // https://api-docs.deepseek.com/quick_start/pricing
+  // Show the axis only where a DeepSeek-backed model can appear, or where the
+  // stored pricing already uses it so an existing off-peak entry stays editable.
+  const showPricingPeriod = PRICING_PERIOD_UPSTREAM_KINDS.includes(upstreamKind)
+    || drafts.some(draft => {
+      const coordinate = draft.selector['pricingPeriod'];
+      return typeof coordinate === 'string' && coordinate.trim() !== '';
+    });
+  const visibleAxes = PRICING_AXES.filter(axis => axis.id !== 'pricingPeriod' || showPricingPeriod);
 
   const metricName = (metric: BillingMetric): string => t(`dashboard.upstreamEditor.models.pricingMetrics.${metric}`);
 
@@ -238,7 +252,7 @@ export function PricingEditor({ kind, onChange, readOnly, value }: {
             : undefined}
         />
         <div className={`${TWO_COLUMN_FORM_CLASS} gap-3`}>
-          {PRICING_AXES.map(axis => {
+          {visibleAxes.map(axis => {
             if (axis.kind === 'equality') {
               const current = active.selector[axis.id];
               const isPricingPeriod = axis.id === 'pricingPeriod';

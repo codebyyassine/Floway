@@ -78,4 +78,14 @@ describe('peak pricing switch', () => {
     renderSidebar(customRecord(false));
     expect((screen.getByRole('switch', { name: label() }) as HTMLInputElement).checked).toBe(false);
   });
+
+  it('hides the DeepSeek peak switch on a Codex upstream without a stored opt-in', () => {
+    const codexRecord = upstreamRecord('up_codex', {
+      kind: 'codex',
+      config: { accounts: [] },
+      state: { accounts: [] },
+    } as unknown as Parameters<typeof upstreamRecord>[1]);
+    renderSidebar(codexRecord);
+    expect(screen.queryByRole('switch', { name: label() })).toBeNull();
+  });
 });

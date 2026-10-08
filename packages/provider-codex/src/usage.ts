@@ -11,10 +11,9 @@
 //
 // Both project into `CodexQuotaSnapshot` so the dashboard renders one shape
 // regardless of which path filled the slot. The active read carries no
-// `active_limit`, so its snapshots file under the existing `unknown` key via
-// `codexQuotaActiveLimitKey` (unchanged on purpose: the passive path is the
-// only source that names a limit, and splitting the active reading onto its
-// own key would fork the dashboard card by source rather than by limit).
+// `active_limit`, so `putCodexQuota` projects it into the latest named bucket
+// when one exists rather than forking an `unknown` card beside it; only an
+// account with no named reading yet keeps the `unknown` key.
 //
 // Body shape (every field optional; three independent third-party gateways
 // describe the same wire):
