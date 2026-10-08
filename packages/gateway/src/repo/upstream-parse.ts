@@ -21,3 +21,8 @@ export const parseUpstreamHue = (id: string, value: unknown): number => {
     throw new Error(`Invalid upstream hue for ${id}`, { cause });
   }
 };
+
+export const parseUpstreamPeakBlock = (id: string, value: unknown): boolean => {
+  if (value === 0 || value === 1) return value === 1;
+  throw new Error(`Invalid upstream block_peak_priced_models for ${id}`);
+};

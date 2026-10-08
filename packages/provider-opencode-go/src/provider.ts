@@ -247,6 +247,7 @@ export const createOpencodeGoProvider = (record: UpstreamRecord): Provider => {
     // attributed to it.
     inboundHeaderAllowlist: [OPENCODE_GO_SESSION_HEADER],
     disabledPublicModelIds: record.disabledPublicModelIds,
+    blockPeakPricedModels: record.blockPeakPricedModels ?? false,
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

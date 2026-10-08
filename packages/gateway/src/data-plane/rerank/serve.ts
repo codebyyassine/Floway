@@ -4,6 +4,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { rerankAttempt, type RerankAttemptResult } from './attempt.ts';
 import type { UsageQuantities } from '../../repo/types.ts';
 import { backgroundSchedulerFromContext } from '../../runtime/background.ts';
+import { peakBlockedMessage } from '../providers/peak-gate.ts';
 import { enumerateModelCandidates } from '../providers/resolution.ts';
 import { appendFailedUpstreams } from '../shared/failed-upstreams.ts';
 import { createGatewayCtxFromHono, finalizeGatewayResponse, type GatewayCtx } from '../shared/gateway-ctx.ts';
@@ -17,8 +18,10 @@ import { parseRerankRequest, parseRerankResponse, parseRerankUsage, renderRerank
 import { httpResponseToResponse, ProviderModelsUnavailableError, providerModelOf, toInternalDebugError } from '@floway-dev/provider';
 import type { TelemetryModelIdentity } from '@floway-dev/provider';
 
-const apiError = (c: Context, message: string, status: ContentfulStatusCode): Response =>
-  c.json({ error: { message, type: 'api_error' } }, status);
+const apiError = (c: Context, message: string, status: ContentfulStatusCode, headers?: Headers): Response =>
+  headers === undefined
+    ? c.json({ error: { message, type: 'api_error' } }, status)
+    : c.json({ error: { message, type: 'api_error' } }, status, Object.fromEntries(headers));
 
 const parseJson = (bytes: Uint8Array): unknown => {
   try {
@@ -76,7 +79,7 @@ export const rerank = (sourceProtocol: RerankSourceProtocol) => async (c: Contex
   let measuredUsage: Pick<CanonicalRerankResponse, 'searchUnits' | 'totalTokens'> | undefined;
   let usageSettled = false;
   try {
-    const { candidates, sawModel, failedUpstreams } = await enumerateModelCandidates({
+    const { candidates, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
       upstreamIds: ctx.upstreamIds,
       model,
       kind: 'rerank',
@@ -85,6 +88,14 @@ export const rerank = (sourceProtocol: RerankSourceProtocol) => async (c: Contex
     });
     if (candidates.length === 0) {
       ctx.dump?.error('gateway');
+      if (peakBlock !== null) {
+        return finalizeGatewayResponse(ctx, apiError(
+          c,
+          peakBlockedMessage({ model, retryAfterSeconds: peakBlock.retryAfterSeconds, nextOffPeak: peakBlock.nextOffPeak }),
+          429,
+          new Headers({ 'Retry-After': String(peakBlock.retryAfterSeconds) }),
+        ));
+      }
       const message = sawModel
         ? unsupportedMessage(model)
         : `Model ${model} is not available on any configured upstream.`;

@@ -531,6 +531,12 @@ const zhHansCN = {
           apiPaths: 'API 路径',
           prefix: '模型名称前缀',
           disabledModels: '禁用的模型',
+          peakPricing: '高峰计费',
+        },
+        peakPricing: {
+          label: '在高峰时段阻止高峰计费模型',
+          description:
+              '在 DeepSeek 高峰计费生效期间，带有低谷价格的模型请求将被拒绝并返回重试时间，而不会按高峰价格计费。',
         },
         hue: {
           description: '选择在控制台中区分此上游的颜色。',

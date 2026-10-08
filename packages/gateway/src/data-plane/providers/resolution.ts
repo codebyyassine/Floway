@@ -2,6 +2,7 @@ import { isEqual, uniqWith } from 'es-toolkit';
 
 import { internalModelFromProviderModel } from './catalog.ts';
 import { readUpstreamModelsSnapshotAndScheduleRefresh } from './models-cache.ts';
+import { isPeakPricedModel, peakBlockAfter, type PeakBlock } from './peak-gate.ts';
 import { listModelProviders, type GatewayProvider } from './registry.ts';
 import { createPerRequestFetcher } from '../../dial/per-request.ts';
 import { createModelsRefreshScheduler, type ModelsRefreshScheduler } from '../../execution/models-refresh.ts';
@@ -9,7 +10,7 @@ import { getRepo } from '../../repo/index.ts';
 import type { ModelAliasRecord } from '../../repo/types.ts';
 import type { BackgroundScheduler } from '@floway-dev/platform';
 import type { ModelKind } from '@floway-dev/protocols/common';
-import type { Fetcher, ModelCandidate } from '@floway-dev/provider';
+import { providerModelOf, type Fetcher, type ModelCandidate } from '@floway-dev/provider';
 
 // Resolve one inbound id against one upstream. The upstream's
 // `modelPrefix.addressable` configuration decides which lookup branches
@@ -136,6 +137,27 @@ const resolveRealCandidates = (
   };
 };
 
+// Peak-priced models stay routable off-peak and on upstreams that did not
+// opt into blocking. During peak the gate drops every candidate whose
+// upstream opted in and whose own model carries an `off-peak` pricing entry,
+// and reports the block only when nothing remains — a surviving candidate
+// from an upstream without the toggle still serves. `sawModel` is untouched:
+// the id is known, it is just not servable right now.
+const applyPeakGate = (
+  candidates: readonly ModelCandidate[],
+  now: Date,
+): { readonly candidates: readonly ModelCandidate[]; readonly peakBlock: PeakBlock | null } => {
+  const block = peakBlockAfter(now);
+  if (block === null) return { candidates, peakBlock: null };
+  const kept = candidates.filter(candidate => {
+    if (!(candidate.provider.blockPeakPricedModels ?? false)) return true;
+    return !isPeakPricedModel(providerModelOf(candidate).pricing);
+  });
+  if (kept.length === candidates.length) return { candidates, peakBlock: null };
+  if (kept.length > 0) return { candidates: kept, peakBlock: null };
+  return { candidates: kept, peakBlock: block };
+};
+
 // Target order for an alias walk: `first-available` yields declaration
 // order; `random` shuffles so the outer walk distributes uniformly across
 // targets. Within a single target's real-catalog walk the per-upstream
@@ -186,7 +208,7 @@ const orderAliasTargets = (alias: ModelAliasRecord): readonly ModelAliasRecord['
 // whose first target matches its own name) resolves to the real model on
 // the first pass; alias names never re-enter the alias layer.
 export const enumerateModelCandidates = async ({
-  upstreamIds, model, kind, scheduler, runtimeLocation,
+  upstreamIds, model, kind, scheduler, runtimeLocation, now,
 }: {
   // null = unrestricted; empty list = no providers visible.
   upstreamIds: readonly string[] | null;
@@ -197,11 +219,16 @@ export const enumerateModelCandidates = async ({
   // Threaded into the per-request fetcher so colo-scoped fallback entries
   // can be honoured at dial time.
   runtimeLocation: string;
+  // Request time for the DeepSeek peak gate. Defaults to now; tests inject
+  // a fixed instant to pin the pricing period.
+  now?: Date;
 }): Promise<{
   readonly candidates: readonly ModelCandidate[];
   readonly sawModel: boolean;
   readonly failedUpstreams: readonly string[];
+  readonly peakBlock: PeakBlock | null;
 }> => {
+  const requestTime = now ?? new Date();
   const createFetcherForUpstream = await createPerRequestFetcher(runtimeLocation);
   const providers = await listModelProviders(upstreamIds);
   const resolutionContext = {
@@ -211,7 +238,9 @@ export const enumerateModelCandidates = async ({
 
   const alias = await getRepo().modelAliases.getByName(model);
   if (alias === null) {
-    return resolveRealCandidates(model, kind, providers, resolutionContext);
+    const resolved = resolveRealCandidates(model, kind, providers, resolutionContext);
+    const gated = applyPeakGate(resolved.candidates, requestTime);
+    return { ...resolved, ...gated };
   }
 
   // Walk every target, tag each returned candidate with the target's rule
@@ -234,9 +263,11 @@ export const enumerateModelCandidates = async ({
     candidate.model.id === existing.model.id
     && candidate.provider.upstreamId === existing.provider.upstreamId
     && isEqual(candidate.rules, existing.rules));
+  const gated = applyPeakGate(deduped, requestTime);
   return {
-    candidates: deduped,
+    candidates: gated.candidates,
     sawModel: sawAny,
     failedUpstreams: [...aggregatedFailed],
+    peakBlock: gated.peakBlock,
   };
 };

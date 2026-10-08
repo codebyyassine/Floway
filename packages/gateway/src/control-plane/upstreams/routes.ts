@@ -255,6 +255,7 @@ export const createUpstream = async (c: CtxWithJson<typeof createUpstreamBody>) 
     proxyFallbackList,
     modelPrefix,
     hue: body.hue,
+    blockPeakPricedModels: body.block_peak_priced_models ?? false,
     config: body.config,
     state: stateFromBody,
     // Operator edits never carry the catalog cache; the repo leaves the
@@ -299,7 +300,7 @@ export const updateUpstream = async (c: CtxWithJson<typeof updateUpstreamBody, '
   // OAuth-managed config slices (Copilot githubToken/user, Claude Code
   // accounts[]) are owned by the per-provider action endpoints, not by generic
   // PATCH. Metadata (name, enabled, sort_order, flag overrides, disabled model
-  // ids) still flows through here.
+  // ids, peak-priced blocking) still flows through here.
   //
   // Codex is narrower rather than closed: an import may leave display metadata
   // unknown, and correcting an email or a plan should not require re-importing
@@ -340,6 +341,7 @@ export const updateUpstream = async (c: CtxWithJson<typeof updateUpstreamBody, '
     next = { ...next, modelPrefix: result.value };
   }
   if (body.hue !== undefined) next = { ...next, hue: body.hue };
+  if (body.block_peak_priced_models !== undefined) next = { ...next, blockPeakPricedModels: body.block_peak_priced_models };
   if (body.config !== undefined) {
     if (patchedCodexConfig !== undefined) {
       next = { ...next, config: patchedCodexConfig };

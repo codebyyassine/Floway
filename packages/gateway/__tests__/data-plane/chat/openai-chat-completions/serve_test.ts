@@ -14,6 +14,7 @@ interface QueuedResolution {
   readonly candidates: readonly ModelCandidate[];
   readonly sawModel: boolean;
   readonly failedUpstreams: readonly string[];
+  readonly peakBlock: { readonly retryAfterSeconds: number; readonly nextOffPeak: string } | null;
 }
 const resolutionsQueue: QueuedResolution[] = [];
 const lastResolveCall: { model?: string } = {};
@@ -43,6 +44,7 @@ const queueResolution = (
     candidates: rules !== undefined ? candidates.map(c => ({ ...c, rules })) : candidates,
     sawModel: extra.sawModel ?? candidates.length > 0,
     failedUpstreams: [],
+    peakBlock: null,
   });
 };
 

@@ -7,7 +7,7 @@ import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
 import { prepareCodexSessionAffinity } from '../shared/codex-session-affinity.ts';
-import { noViableCandidateFailure } from '../shared/errors.ts';
+import { noViableCandidateFailure, peakBlockedFailure } from '../shared/errors.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { GeminiGenerateContentPayload, GeminiGenerateContentStreamEvent } from '@floway-dev/protocols/gemini-generate-content';
@@ -34,7 +34,7 @@ export interface GeminiGenerateContentServeCountTokensArgs {
 export const geminiGenerateContentServe = {
   generate: async (args: GeminiGenerateContentServeGenerateArgs): Promise<ExecuteResult<ProtocolFrame<GeminiGenerateContentStreamEvent>>> => {
     const { payload, ctx, model, headers } = args;
-    const { candidates: enumerated, sawModel, failedUpstreams } = await enumerateModelCandidates({
+    const { candidates: enumerated, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
       upstreamIds: ctx.upstreamIds,
       model,
       kind: 'chat',
@@ -45,7 +45,10 @@ export const geminiGenerateContentServe = {
     const viable = enumerated.filter(c => geminiGenerateContentGenerateTarget.canServe(c.model.endpoints));
     const selection = selectAffinityCandidates(viable, affinity);
     if ('kind' in selection) return renderGeminiGenerateContentFailure(selection, 'generate');
-    if (selection.candidates.length === 0) return renderGeminiGenerateContentFailure(noViableCandidateFailure(sawModel, model, failedUpstreams), 'generate');
+    if (selection.candidates.length === 0) {
+      if (peakBlock !== null) return renderGeminiGenerateContentFailure(peakBlockedFailure(model, peakBlock), 'generate');
+      return renderGeminiGenerateContentFailure(noViableCandidateFailure(sawModel, model, failedUpstreams), 'generate');
+    }
 
     const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => {
       const cleaned = structuredClone(payload);
@@ -74,7 +77,7 @@ export const geminiGenerateContentServe = {
 
   countTokens: async (args: GeminiGenerateContentServeCountTokensArgs): Promise<ExecuteResult<ProtocolFrame<GeminiGenerateContentStreamEvent>> | PlainResult> => {
     const { payload, ctx, model, headers } = args;
-    const { candidates: enumerated, sawModel, failedUpstreams } = await enumerateModelCandidates({
+    const { candidates: enumerated, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
       upstreamIds: ctx.upstreamIds,
       model,
       kind: 'chat',
@@ -85,7 +88,10 @@ export const geminiGenerateContentServe = {
     const viable = enumerated.filter(c => geminiGenerateContentCountTokensTarget.canServe(c.model.endpoints));
     const selection = selectAffinityCandidates(viable, affinity);
     if ('kind' in selection) return renderGeminiGenerateContentFailure(selection, 'countTokens');
-    if (selection.candidates.length === 0) return renderGeminiGenerateContentFailure(noViableCandidateFailure(sawModel, model, failedUpstreams), 'countTokens');
+    if (selection.candidates.length === 0) {
+      if (peakBlock !== null) return renderGeminiGenerateContentFailure(peakBlockedFailure(model, peakBlock), 'countTokens');
+      return renderGeminiGenerateContentFailure(noViableCandidateFailure(sawModel, model, failedUpstreams), 'countTokens');
+    }
 
     return await iterateCandidates(
       selection.candidates,

@@ -124,6 +124,7 @@ export const createClaudeCodeProvider = (record: UpstreamRecord): Provider => {
     name: record.name,
     inboundHeaderAllowlist: INBOUND_HEADER_ALLOWLIST,
     disabledPublicModelIds: record.disabledPublicModelIds,
+    blockPeakPricedModels: record.blockPeakPricedModels ?? false,
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

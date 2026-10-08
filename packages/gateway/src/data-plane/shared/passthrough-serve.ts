@@ -25,6 +25,7 @@ import { settle } from './telemetry/settle.ts';
 import { forwardUpstreamHeaders, forwardUpstreamResponse } from './upstream-response.ts';
 import type { AuthedContext } from '../../middleware/auth.ts';
 import type { TokenUsage } from '../../repo/types.ts';
+import { peakBlockedMessage } from '../providers/peak-gate.ts';
 import { enumerateModelCandidates } from '../providers/resolution.ts';
 import { doneFrame, eventFrame, type ModelKind, parseSSEStream, parseTargetStreamFrames, type ProtocolFrame, sseCommentFrame, sseFrame } from '@floway-dev/protocols/common';
 import { httpResponseToResponse, ProviderModelsUnavailableError, toInternalDebugError } from '@floway-dev/provider';
@@ -86,8 +87,10 @@ interface PassthroughServeContext {
 }
 
 // Uniform error envelope for this endpoint family.
-export const passthroughApiError = (c: Context, message: string, status: ContentfulStatusCode): Response =>
-  c.json({ error: { message, type: 'api_error' } }, status);
+export const passthroughApiError = (c: Context, message: string, status: ContentfulStatusCode, headers?: Headers): Response =>
+  headers === undefined
+    ? c.json({ error: { message, type: 'api_error' } }, status)
+    : c.json({ error: { message, type: 'api_error' } }, status, Object.fromEntries(headers));
 
 export const passthroughServe = async (input: PassthroughServeContext): Promise<Response> => {
   const { c, ctx, sourceApi, operation, model, kind, modelServesEndpoint, call, response: responseHandling } = input;
@@ -108,7 +111,7 @@ export const passthroughServe = async (input: PassthroughServeContext): Promise<
     // flattened list. Passthrough endpoints never consult that overlay, so
     // whatever rules a target carries are inert here — the alias flow only
     // changes which id the gateway addresses upstream.
-    const { candidates, sawModel, failedUpstreams } = await enumerateModelCandidates({
+    const { candidates, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
       upstreamIds: ctx.upstreamIds,
       model,
       kind,
@@ -117,6 +120,14 @@ export const passthroughServe = async (input: PassthroughServeContext): Promise<
     });
     if (candidates.length === 0) {
       ctx.dump?.error('gateway');
+      if (peakBlock !== null) {
+        return passthroughApiError(
+          c,
+          peakBlockedMessage({ model, retryAfterSeconds: peakBlock.retryAfterSeconds, nextOffPeak: peakBlock.nextOffPeak }),
+          429,
+          new Headers({ 'Retry-After': String(peakBlock.retryAfterSeconds) }),
+        );
+      }
       // `sawModel === false` means no upstream catalog knew the inbound id
       // at all (404); `sawModel === true` with zero candidates means the
       // id is known but every match was the wrong kind for this endpoint

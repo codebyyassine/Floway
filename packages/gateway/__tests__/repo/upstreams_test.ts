@@ -254,6 +254,7 @@ test('SQL upstream repo rejects malformed stored upstream JSON', async () => {
     proxy_fallback_list_json: '[]',
     model_prefix_json: null,
     hue: 210,
+    block_peak_priced_models: 0,
   });
 
   await assertRejects(() => new SqlRepo(db).upstreams.list(), Error, 'Malformed upstream config JSON for up_bad_config');
@@ -278,6 +279,7 @@ test('SQL upstream repo rejects malformed stored flag overrides JSON', async () 
     proxy_fallback_list_json: '[]',
     model_prefix_json: null,
     hue: 210,
+    block_peak_priced_models: 0,
   });
 
   await assertRejects(() => new SqlRepo(db).upstreams.getById('up_bad_fixes'), Error, 'Malformed upstream flag_overrides JSON for up_bad_fixes');
@@ -302,6 +304,7 @@ test('SQL upstream repo rejects array-shaped flag_overrides with helpful message
     proxy_fallback_list_json: '[]',
     model_prefix_json: null,
     hue: 210,
+    block_peak_priced_models: 0,
   });
 
   await assertRejects(
@@ -330,6 +333,7 @@ test('SQL upstream repo rejects non-boolean value in flag_overrides with helpful
     proxy_fallback_list_json: '[]',
     model_prefix_json: null,
     hue: 210,
+    block_peak_priced_models: 0,
   });
 
   await assertRejects(
@@ -358,6 +362,7 @@ test('SQL upstream repo rejects malformed stored model_prefix_json', async () =>
     proxy_fallback_list_json: '[]',
     model_prefix_json: '{not json',
     hue: 210,
+    block_peak_priced_models: 0,
   });
 
   await assertRejects(() => new SqlRepo(db).upstreams.getById('up_bad_prefix_json'), Error, 'Malformed upstream model_prefix_json for up_bad_prefix_json');
@@ -383,6 +388,7 @@ test('SQL upstream repo rejects shape-invalid model_prefix_json', async () => {
     // Prefix missing trailing slash — passes JSON.parse but fails the regex.
     model_prefix_json: '{"prefix":"or","addressable":["unprefixed"],"listed":[]}',
     hue: 210,
+    block_peak_priced_models: 0,
   });
 
   await assertRejects(() => new SqlRepo(db).upstreams.getById('up_bad_prefix_shape'), Error, 'Invalid upstream model_prefix_json shape for up_bad_prefix_shape');
@@ -453,6 +459,7 @@ test('SQL upstream repo rejects a stored hue outside the circle', async () => {
     proxy_fallback_list_json: '[]',
     model_prefix_json: null,
     hue: 360,
+    block_peak_priced_models: 0,
   });
 
   await assertRejects(() => new SqlRepo(db).upstreams.getById('up_bad_hue'), Error, 'Invalid upstream hue for up_bad_hue');
@@ -969,6 +976,7 @@ type FakeUpstreamRow = {
   proxy_fallback_list_json: string;
   model_prefix_json: string | null;
   hue: number;
+  block_peak_priced_models: number;
 };
 
 class FakeUpstreamsSqlPreparedStatement {

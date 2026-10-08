@@ -23,6 +23,7 @@ interface QueuedResolution {
   readonly candidates: readonly ModelCandidate[];
   readonly sawModel: boolean;
   readonly failedUpstreams: readonly string[];
+  readonly peakBlock: { readonly retryAfterSeconds: number; readonly nextOffPeak: string } | null;
 }
 const resolutionsQueue: QueuedResolution[] = [];
 const lastResolveCall: { model?: string } = {};
@@ -46,13 +47,14 @@ const API_KEY_ID = 'key_serve_test';
 
 const queueResolution = (
   candidates: readonly ModelCandidate[],
-  extra: { sawModel?: boolean; aliasRules?: AliasRules } = {},
+  extra: { sawModel?: boolean; aliasRules?: AliasRules; peakBlock?: { readonly retryAfterSeconds: number; readonly nextOffPeak: string } | null } = {},
 ): void => {
   const rules = extra.aliasRules;
   resolutionsQueue.push({
     candidates: rules !== undefined ? candidates.map(c => ({ ...c, rules })) : candidates,
     sawModel: extra.sawModel ?? candidates.length > 0,
     failedUpstreams: [],
+    peakBlock: extra.peakBlock ?? null,
   });
 };
 
@@ -324,6 +326,28 @@ test('generate renders model-missing when no candidates are available', async ()
   const body = JSON.parse(new TextDecoder().decode(result.body));
   assertEquals(body.error.type, 'invalid_request_error');
   assertEquals(body.error.message, 'Model unknown-model is not available on any configured upstream.');
+});
+
+test('generate renders model-peak-blocked as a 429 with a retry time', async () => {
+  installRepo();
+  queueResolution([], {
+    sawModel: true,
+    peakBlock: { retryAfterSeconds: 10_800, nextOffPeak: '2026-09-29T10:00:00.000Z' },
+  });
+
+  const result = await openaiResponsesServe.generate({
+    payload: makePayload({ model: 'peak-model' }),
+    ctx: makeGatewayCtx(),
+    headers: new Headers(),
+  });
+
+  assertEquals(result.type, 'api-error');
+  if (result.type !== 'api-error') throw new Error('unreachable');
+  assertEquals(result.status, 429);
+  assertEquals(result.headers.get('Retry-After'), '10800');
+  const body = JSON.parse(new TextDecoder().decode(result.body));
+  assertEquals(body.error.type, 'invalid_request_error');
+  assertEquals(body.error.message, 'Model peak-model is blocked during DeepSeek peak pricing. Off-peak starts at 2026-09-29T10:00:00.000Z (retry in 10800s).');
 });
 
 test('generate filters out candidates whose endpoints do not satisfy the responses preference and renders model-unsupported as a 400', async () => {

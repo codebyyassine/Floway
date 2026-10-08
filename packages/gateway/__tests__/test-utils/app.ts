@@ -81,6 +81,7 @@ export const buildCopilotUpstreamRecord = (githubAccount: CopilotAccountFixture,
     modelPrefix: null,
     modelsCache: null,
     hue: 210,
+    blockPeakPricedModels: false,
     ...rest,
     config: overrideConfig ?? config,
   };
@@ -118,6 +119,7 @@ export const buildCodexUpstreamRecord = (overrides: Partial<UpstreamRecord> = {}
     modelPrefix: null,
     modelsCache: null,
     hue: 210,
+    blockPeakPricedModels: false,
     ...rest,
     config: overrideConfig ?? config,
   };
@@ -160,6 +162,7 @@ export const buildCustomUpstreamRecord = (overrides: Partial<UpstreamRecord> = {
     modelPrefix: null,
     modelsCache: null,
     hue: 210,
+    blockPeakPricedModels: false,
     ...rest,
     config: overrideConfig ?? config,
   };

@@ -80,6 +80,7 @@ const CUSTOM_UPSTREAM: StoredUpstreamRecord = {
   configVersion: 1,
   modelsCache: null,
   hue: 210,
+  blockPeakPricedModels: false,
   config: {
     baseUrl: 'https://custom.example.com',
     authStyle: 'bearer',
@@ -109,6 +110,7 @@ const COPILOT_UPSTREAM: StoredUpstreamRecord = {
   configVersion: 1,
   modelsCache: null,
   hue: 210,
+  blockPeakPricedModels: false,
   config: {
     githubHost: 'github.com',
     githubToken: 'ghu-alice',
@@ -137,6 +139,7 @@ const AZURE_UPSTREAM: StoredUpstreamRecord = {
   configVersion: 1,
   modelsCache: null,
   hue: 210,
+  blockPeakPricedModels: false,
   config: {
     endpoint: 'https://example.openai.azure.com',
     apiKey: 'az-key',
@@ -172,6 +175,7 @@ const OLLAMA_UPSTREAM: StoredUpstreamRecord = {
   configVersion: 1,
   modelsCache: null,
   hue: 210,
+  blockPeakPricedModels: false,
   config: {
     baseUrl: 'https://ollama.com',
     apiKey: 'ollama-key',
@@ -202,6 +206,7 @@ const CODEX_UPSTREAM: StoredUpstreamRecord = {
   configVersion: 1,
   modelsCache: null,
   hue: 210,
+  blockPeakPricedModels: false,
   config: {
     accounts: [{
       email: 'alice@example.com',

@@ -87,6 +87,10 @@ export interface UpstreamRecord {
   // from the catalog and unroutable, but its row metadata stays editable.
   // Entries may reference ids no longer present in the live model list.
   disabledPublicModelIds: string[];
+  // Operator opt-in to refuse peak-priced models (pricing with an `off-peak`
+  // entry) while DeepSeek peak pricing is in effect. Absent reads as false;
+  // the gateway normalizes it at every boundary that needs a definite value.
+  blockPeakPricedModels?: boolean;
   proxyFallbackList: ProxyFallbackEntry[];
   // Per-upstream model name prefix policy. `null` keeps the bare-id behavior
   // — the upstream's models are addressed and listed by bare upstream id only.

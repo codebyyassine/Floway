@@ -159,6 +159,7 @@ interface SerializedUpstreamRecordBase {
   proxy_fallback_list: ProxyFallbackEntry[];
   model_prefix: ModelPrefixConfig | null;
   hue: number;
+  block_peak_priced_models: boolean;
 }
 
 type RedactedCustomConfig = CustomConfigFields & { apiKeySet: boolean };

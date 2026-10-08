@@ -27,6 +27,12 @@ test('config-version migration preserves cached models and gives existing failur
   const migration = migrationSqlByFilename.find(([filename]) => filename === '0085_upstream_config_version.sql');
   if (!migration) throw new Error('config version migration missing');
   db.run(migration[1]);
+  // The production repository below selects the current schema, so the
+  // remaining orthogonal migrations land too before it reads — the same
+  // tail-apply the 0072 fold test uses.
+  for (const [, sql] of migrationSqlByFilename.filter(([filename]) => filename > '0085_upstream_config_version.sql').toSorted()) {
+    db.run(sql);
+  }
 
   const record = await new SqlRepo(wrapSqlJsDatabase(db)).upstreams.getById('up_legacy_failure');
   expect(record?.configVersion).toBe(1);

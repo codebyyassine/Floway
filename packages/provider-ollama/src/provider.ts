@@ -226,6 +226,7 @@ export const createOllamaProvider = (record: UpstreamRecord): Provider => {
     name: record.name,
     inboundHeaderAllowlist: [],
     disabledPublicModelIds: record.disabledPublicModelIds,
+    blockPeakPricedModels: record.blockPeakPricedModels ?? false,
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

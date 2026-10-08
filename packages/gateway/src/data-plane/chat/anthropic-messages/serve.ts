@@ -6,7 +6,7 @@ import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
 import { prepareCodexSessionAffinity } from '../shared/codex-session-affinity.ts';
-import { noViableCandidateFailure } from '../shared/errors.ts';
+import { noViableCandidateFailure, peakBlockedFailure } from '../shared/errors.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import { parseAnthropicBetaHeader, type AnthropicMessagesPayload, type AnthropicMessagesStreamEvent } from '@floway-dev/protocols/anthropic-messages';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
@@ -29,7 +29,7 @@ export const anthropicMessagesServe = {
   generate: async (args: AnthropicMessagesServeGenerateArgs): Promise<ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEvent>>> => {
     const { payload, ctx, headers } = args;
     const anthropicBeta = parseAnthropicBetaHeader(headers.get('anthropic-beta'));
-    const { candidates: enumerated, sawModel, failedUpstreams } = await enumerateModelCandidates({
+    const { candidates: enumerated, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
       upstreamIds: ctx.upstreamIds,
       model: payload.model,
       kind: 'chat',
@@ -40,7 +40,10 @@ export const anthropicMessagesServe = {
     const viable = enumerated.filter(c => anthropicMessagesGenerateTarget.canServe(c.model.endpoints));
     const selection = selectAffinityCandidates(viable, affinity);
     if ('kind' in selection) return renderAnthropicMessagesFailure(selection, 'generate');
-    if (selection.candidates.length === 0) return renderAnthropicMessagesFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams), 'generate');
+    if (selection.candidates.length === 0) {
+      if (peakBlock !== null) return renderAnthropicMessagesFailure(peakBlockedFailure(payload.model, peakBlock), 'generate');
+      return renderAnthropicMessagesFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams), 'generate');
+    }
 
     const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => {
       const prepared = prepareAnthropicMessagesWebSearchShimRequest(structuredClone(payload));
@@ -72,7 +75,7 @@ export const anthropicMessagesServe = {
   countTokens: async (args: AnthropicMessagesServeCountTokensArgs): Promise<ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEvent>> | PlainResult> => {
     const { payload, ctx, headers } = args;
     const anthropicBeta = parseAnthropicBetaHeader(headers.get('anthropic-beta'));
-    const { candidates: enumerated, sawModel, failedUpstreams } = await enumerateModelCandidates({
+    const { candidates: enumerated, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
       upstreamIds: ctx.upstreamIds,
       model: payload.model,
       kind: 'chat',
@@ -83,7 +86,10 @@ export const anthropicMessagesServe = {
     const viable = enumerated.filter(c => anthropicMessagesCountTokensTarget.canServe(c.model.endpoints));
     const selection = selectAffinityCandidates(viable, affinity);
     if ('kind' in selection) return renderAnthropicMessagesFailure(selection, 'countTokens');
-    if (selection.candidates.length === 0) return renderAnthropicMessagesFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams), 'countTokens');
+    if (selection.candidates.length === 0) {
+      if (peakBlock !== null) return renderAnthropicMessagesFailure(peakBlockedFailure(payload.model, peakBlock), 'countTokens');
+      return renderAnthropicMessagesFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams), 'countTokens');
+    }
 
     return await iterateCandidates(
       selection.candidates,

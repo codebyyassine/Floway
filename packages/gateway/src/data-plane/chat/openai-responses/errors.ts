@@ -1,5 +1,6 @@
+import { peakBlockedMessage } from '../../providers/peak-gate.ts';
 import { appendFailedUpstreams } from '../../shared/failed-upstreams.ts';
-import { openAiErrorResult, type ChatServeFailure } from '../shared/errors.ts';
+import { openAiErrorResult, withRetryAfter, type ChatServeFailure } from '../shared/errors.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { OpenAIResponsesStreamEvent } from '@floway-dev/protocols/openai-responses';
 import type { ApiErrorResult, ExecuteResult, PerformanceTelemetryContext } from '@floway-dev/provider';
@@ -27,5 +28,7 @@ export const renderOpenAIResponsesFailure = (
     return openAiErrorResult(404, appendFailedUpstreams(`Model ${failure.model} is not available on any configured upstream.`, failure.failedUpstreams));
   case 'model-unsupported':
     return openAiErrorResult(400, appendFailedUpstreams(`Model ${failure.model} does not support the /responses endpoint.`, failure.failedUpstreams));
+  case 'model-peak-blocked':
+    return withRetryAfter(openAiErrorResult(429, peakBlockedMessage(failure), { param: 'model', code: null }), failure.retryAfterSeconds);
   }
 };

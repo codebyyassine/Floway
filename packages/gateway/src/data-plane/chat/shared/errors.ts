@@ -8,6 +8,7 @@ import type { ApiErrorResult, PerformanceTelemetryContext } from '@floway-dev/pr
 export type ChatServeFailure =
   | { readonly kind: 'model-missing'; readonly model: string; readonly failedUpstreams: readonly string[] }
   | { readonly kind: 'model-unsupported'; readonly model: string; readonly failedUpstreams: readonly string[] }
+  | { readonly kind: 'model-peak-blocked'; readonly model: string; readonly retryAfterSeconds: number; readonly nextOffPeak: string }
   | { readonly kind: 'routing-unavailable'; readonly message: string };
 
 class ChatServeFailureError<TFailure extends { readonly kind: string }> extends Error {
@@ -56,3 +57,24 @@ export const noViableCandidateFailure = (
   sawModel
     ? { kind: 'model-unsupported', model, failedUpstreams }
     : { kind: 'model-missing', model, failedUpstreams };
+
+// The peak gate dropped every candidate: the model is known but no upstream
+// serving it will take a peak-priced request right now. Rendered as 429 so
+// clients back off until the off-peak switch rather than failing over.
+export const peakBlockedFailure = (
+  model: string,
+  block: { readonly retryAfterSeconds: number; readonly nextOffPeak: string },
+): ChatServeFailure => ({
+  kind: 'model-peak-blocked',
+  model,
+  retryAfterSeconds: block.retryAfterSeconds,
+  nextOffPeak: block.nextOffPeak,
+});
+
+// Stamps `Retry-After` on a gateway-synthesized error so clients back off
+// until the off-peak switch. `apiErrorToResponse` forwards these headers
+// verbatim.
+export const withRetryAfter = (result: ApiErrorResult, retryAfterSeconds: number): ApiErrorResult => {
+  result.headers.set('Retry-After', String(retryAfterSeconds));
+  return result;
+};

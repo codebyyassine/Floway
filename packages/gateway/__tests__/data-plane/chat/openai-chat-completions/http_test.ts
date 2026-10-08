@@ -13,7 +13,7 @@ import type { OpenAIChatCompletionsStreamEvent } from '@floway-dev/protocols/ope
 import { type ModelCandidate, directFetcher, type ProviderStreamResult, type UpstreamCallOptions } from '@floway-dev/provider';
 import { assert, assertEquals, stubProvider, stubInternalModel } from '@floway-dev/test-utils';
 
-const candidatesQueue: { readonly candidates: readonly ModelCandidate[]; readonly sawModel: boolean; readonly failedUpstreams: readonly string[] }[] = [];
+const candidatesQueue: { readonly candidates: readonly ModelCandidate[]; readonly sawModel: boolean; readonly failedUpstreams: readonly string[]; readonly peakBlock: null }[] = [];
 vi.mock('../../../../src/data-plane/providers/resolution.ts', async importOriginal => {
   const original = await importOriginal<typeof import('../../../../src/data-plane/providers/resolution.ts')>();
   return {
@@ -31,7 +31,7 @@ const { openaiChatCompletionsHttp } = await import('../../../../src/data-plane/c
 const API_KEY_ID = 'key_chat_completions_http_test';
 
 const queueCandidates = (candidates: readonly ModelCandidate[], sawModel = candidates.length > 0): void => {
-  candidatesQueue.push({ candidates, sawModel, failedUpstreams: [] });
+  candidatesQueue.push({ candidates, sawModel, failedUpstreams: [], peakBlock: null });
 };
 
 const installRepo = (): InMemoryRepo => {

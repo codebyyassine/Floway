@@ -67,7 +67,7 @@ import {
   encodeUpstreamModelsCache,
 } from './upstream-codecs.ts';
 import { serializeStoredConfig, serializeStoredState } from './upstream-json.ts';
-import { parseUpstreamHue, parseUpstreamKind } from './upstream-parse.ts';
+import { parseUpstreamHue, parseUpstreamKind, parseUpstreamPeakBlock } from './upstream-parse.ts';
 import { usageMetricRows } from './usage-metrics.ts';
 import { querySqlUsageOverview } from './usage-overview-sql.ts';
 import { bucketForTtftMs, bucketForTpotUs } from '../shared/performance-histogram.ts';
@@ -883,7 +883,7 @@ const MODELS_CACHE_EPOCH_SQL = `CASE
   ELSE 0
 END`;
 
-const UPSTREAM_COLUMNS = 'id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, models_cache_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue';
+const UPSTREAM_COLUMNS = 'id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, models_cache_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue, block_peak_priced_models';
 
 class SqlUpstreamRepo implements UpstreamRepo {
   constructor(private db: SqlDatabase) {}
@@ -905,7 +905,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
 
   async insertForModels(upstream: UpstreamRecord): Promise<StoredUpstreamRecord | null> {
     const row = await this.db
-      .prepare(`INSERT INTO upstreams (id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING
+      .prepare(`INSERT INTO upstreams (id, provider, name, enabled, sort_order, created_at, updated_at, config_version, config_json, state_json, flag_overrides, disabled_public_model_ids, proxy_fallback_list_json, model_prefix_json, hue, block_peak_priced_models) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING
         RETURNING ${UPSTREAM_COLUMNS}`)
       .bind(
         upstream.id,
@@ -922,6 +922,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
         JSON.stringify(normalizeProxyFallbackList(upstream.proxyFallbackList)),
         upstream.modelPrefix === null ? null : JSON.stringify(upstream.modelPrefix),
         upstream.hue,
+        sqliteBoolean(upstream.blockPeakPricedModels ?? false),
       )
       .first<UpstreamRow>();
     return row === null ? null : toUpstreamRecord(row);
@@ -972,7 +973,8 @@ class SqlUpstreamRepo implements UpstreamRepo {
            disabled_public_model_ids = ?,
            proxy_fallback_list_json = ?,
            model_prefix_json = ?,
-           hue = ?${modelsCacheUpdate}
+           hue = ?,
+           block_peak_priced_models = ?${modelsCacheUpdate}
          WHERE id = ?
            AND provider = ?
            AND name = ?
@@ -987,6 +989,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
            AND proxy_fallback_list_json = ?
            AND model_prefix_json IS ?
            AND hue = ?
+           AND block_peak_priced_models = ?
          RETURNING ${UPSTREAM_COLUMNS}`,
       )
       .bind(
@@ -1004,6 +1007,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
         JSON.stringify(normalizeProxyFallbackList(upstream.proxyFallbackList)),
         upstream.modelPrefix === null ? null : JSON.stringify(upstream.modelPrefix),
         upstream.hue,
+        sqliteBoolean(upstream.blockPeakPricedModels ?? false),
         upstream.id,
         previous.kind,
         previous.name,
@@ -1019,6 +1023,7 @@ class SqlUpstreamRepo implements UpstreamRepo {
         storedRow.proxy_fallback_list_json,
         storedRow.model_prefix_json,
         previous.hue,
+        sqliteBoolean(previous.blockPeakPricedModels ?? false),
       )
       .first<UpstreamRow>();
     return row === null ? null : toUpstreamRecord(row);
@@ -1144,6 +1149,7 @@ interface UpstreamRow {
   proxy_fallback_list_json: string;
   model_prefix_json: string | null;
   hue: number;
+  block_peak_priced_models: number;
 }
 
 const toUpstreamRecord = (row: UpstreamRow): StoredUpstreamRecord => {
@@ -1170,6 +1176,7 @@ const toUpstreamRecord = (row: UpstreamRow): StoredUpstreamRecord => {
     proxyFallbackList: parseProxyFallbackList(row.id, row.proxy_fallback_list_json),
     modelPrefix: parseModelPrefix(row.id, row.model_prefix_json),
     hue: parseUpstreamHue(row.id, row.hue),
+    blockPeakPricedModels: parseUpstreamPeakBlock(row.id, row.block_peak_priced_models),
   };
 };
 

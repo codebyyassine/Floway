@@ -15,6 +15,7 @@ import { PANEL_INSET_CLASS } from '../ui/panel';
 import { ReorderHandle, useReorderList } from '../ui/reorder-list';
 import { ScrollArea } from '../ui/scroll-area';
 import { StatusBadge } from '../ui/status-badge';
+import { SwitchSetting } from '../ui/switch-setting';
 import { TooltipIconButton } from '../ui/tooltip-icon-button';
 import { HuePicker } from '../upstreams/hue-picker';
 import type { UpstreamModelConfig } from '@floway-dev/provider/model-config';
@@ -103,6 +104,9 @@ export function UpstreamConfigSidebar({
         <EditorSection title={t('dashboard.upstreamEditor.sections.disabledModels')} description={t('dashboard.upstreamEditor.disabledModelsHint')}>
           <DisabledModelsCombobox catalogAvailable={catalogAvailable} discovered={discovered} />
         </EditorSection>
+        <EditorSection title={t('dashboard.upstreamEditor.sections.peakPricing')}>
+          <PeakPricingEditor />
+        </EditorSection>
       </aside>
     </div>
   </ScrollArea>;
@@ -112,6 +116,19 @@ function UpstreamHueEditor({ kind }: { kind: UpstreamRecord['kind'] }) {
   const { control } = useFormContext<UpstreamEditorValues>();
   return <Controller control={control} name="hue" render={({ field }) => (
     <HuePicker kind={kind} hue={field.value} onChange={field.onChange} />
+  )} />;
+}
+
+function PeakPricingEditor() {
+  const { t } = useTranslation();
+  const { control } = useFormContext<UpstreamEditorValues>();
+  return <Controller control={control} name="blockPeakPricedModels" render={({ field }) => (
+    <SwitchSetting
+      checked={field.value}
+      description={t('dashboard.upstreamEditor.peakPricing.description')}
+      label={t('dashboard.upstreamEditor.peakPricing.label')}
+      onChange={field.onChange}
+    />
   )} />;
 }
 

@@ -560,6 +560,12 @@ const en = {
           apiPaths: 'API paths',
           prefix: 'Model name prefix',
           disabledModels: 'Disabled models',
+          peakPricing: 'Peak pricing',
+        },
+        peakPricing: {
+          label: 'Block peak-priced models during peak',
+          description:
+              'While DeepSeek peak pricing is in effect, requests for models with off-peak pricing are rejected with a retry time instead of billing at the peak rate.',
         },
         hue: {
           description: 'Choose how this upstream is distinguished across the console.',

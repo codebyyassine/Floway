@@ -34,6 +34,10 @@ export interface Provider {
   // lowercase names. The gateway applies this at the candidate boundary.
   inboundHeaderAllowlist: readonly InboundHeaderMatcher[];
   disabledPublicModelIds: readonly string[];
+  // Whether the data plane refuses peak-priced models on this upstream while
+  // DeepSeek peak pricing is in effect. Mirrored from the source row so
+  // resolution reads it off the instance; absent reads as false.
+  blockPeakPricedModels?: boolean;
   // Per-upstream model name prefix policy mirrored from the source upstream
   // record so registry helpers — routing and listing — read it from the
   // instance instead of re-fetching the row. `null` keeps the bare-id behavior.

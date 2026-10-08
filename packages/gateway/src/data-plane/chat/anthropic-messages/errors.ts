@@ -1,8 +1,9 @@
+import { peakBlockedMessage } from '../../providers/peak-gate.ts';
 import { appendFailedUpstreams } from '../../shared/failed-upstreams.ts';
-import type { ChatServeFailure } from '../shared/errors.ts';
+import { withRetryAfter, type ChatServeFailure } from '../shared/errors.ts';
 import { generateAnthropicId, type AnthropicMessagesStreamEvent } from '@floway-dev/protocols/anthropic-messages';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
-import type { ExecuteResult, PerformanceTelemetryContext } from '@floway-dev/provider';
+import type { ApiErrorResult, ExecuteResult, PerformanceTelemetryContext } from '@floway-dev/provider';
 import type { TranslatorInputError } from '@floway-dev/translate';
 
 // Anthropic Messages error envelope used to render pre-stream
@@ -16,7 +17,7 @@ const anthropicErrorResult = (
   type: string,
   message: string,
   performance?: PerformanceTelemetryContext,
-): ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEvent>> => ({
+): ApiErrorResult => ({
   type: 'api-error',
   source: 'gateway',
   status,
@@ -55,5 +56,7 @@ export const renderAnthropicMessagesFailure = (
     return anthropicErrorResult(404, 'not_found_error', appendFailedUpstreams(`Model ${failure.model} is not available on any configured upstream.`, failure.failedUpstreams));
   case 'model-unsupported':
     return anthropicErrorResult(400, 'invalid_request_error', appendFailedUpstreams(`Model ${failure.model} does not support the ${endpointPath} endpoint.`, failure.failedUpstreams));
+  case 'model-peak-blocked':
+    return withRetryAfter(anthropicErrorResult(429, 'rate_limit_error', peakBlockedMessage(failure)), failure.retryAfterSeconds);
   }
 };

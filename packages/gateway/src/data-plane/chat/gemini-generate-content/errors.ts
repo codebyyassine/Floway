@@ -1,8 +1,9 @@
+import { peakBlockedMessage } from '../../providers/peak-gate.ts';
 import { appendFailedUpstreams } from '../../shared/failed-upstreams.ts';
-import type { ChatServeFailure } from '../shared/errors.ts';
+import { withRetryAfter, type ChatServeFailure } from '../shared/errors.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { GeminiGenerateContentStreamEvent } from '@floway-dev/protocols/gemini-generate-content';
-import type { ExecuteResult, PerformanceTelemetryContext } from '@floway-dev/provider';
+import type { ApiErrorResult, ExecuteResult, PerformanceTelemetryContext } from '@floway-dev/provider';
 import type { TranslatorInputError } from '@floway-dev/translate';
 
 // Google RPC Status envelope, used by Gemini's `error` channel everywhere
@@ -29,7 +30,7 @@ export const geminiGenerateContentStatusForHttpStatus = (status: number): string
   }
 };
 
-const geminiGenerateContentRpcErrorResult = (status: number, message: string, performance?: PerformanceTelemetryContext): ExecuteResult<ProtocolFrame<GeminiGenerateContentStreamEvent>> => ({
+const geminiGenerateContentRpcErrorResult = (status: number, message: string, performance?: PerformanceTelemetryContext): ApiErrorResult => ({
   type: 'api-error',
   source: 'gateway',
   status,
@@ -65,5 +66,7 @@ export const renderGeminiGenerateContentFailure = (
     return geminiGenerateContentRpcErrorResult(404, appendFailedUpstreams(`Model ${failure.model} is not available on any configured upstream.`, failure.failedUpstreams));
   case 'model-unsupported':
     return geminiGenerateContentRpcErrorResult(400, appendFailedUpstreams(`Model ${failure.model} does not support ${endpoint === 'countTokens' ? 'countTokens' : 'the Gemini generateContent endpoint'}.`, failure.failedUpstreams));
+  case 'model-peak-blocked':
+    return withRetryAfter(geminiGenerateContentRpcErrorResult(429, peakBlockedMessage(failure)), failure.retryAfterSeconds);
   }
 };

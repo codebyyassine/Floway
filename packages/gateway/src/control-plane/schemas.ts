@@ -391,6 +391,7 @@ const upstreamBaseFields = {
   proxy_fallback_list: proxyFallbackListSchema.optional(),
   model_prefix: modelPrefixSchema.optional(),
   hue: upstreamHueSchema,
+  block_peak_priced_models: z.boolean().optional(),
 };
 
 // Create accepts a discriminated union on `kind` for per-provider config
@@ -432,6 +433,7 @@ export const updateUpstreamBody = z.object({
   proxy_fallback_list: proxyFallbackListSchema.optional(),
   model_prefix: modelPrefixSchema.optional(),
   hue: upstreamHueSchema.optional(),
+  block_peak_priced_models: z.boolean().optional(),
   // Patches only carry field diffs, not per-kind shape validation — the
   // handler dispatches on the existing row's kind and enforces the shape
   // there (Copilot/Codex/Claude Code reject a config patch outright, since
@@ -569,6 +571,7 @@ export const previewModelsBody = z.object({
     flag_overrides: flagOverridesSchema.optional(),
     disabled_public_model_ids: disabledPublicModelIdsSchema.optional(),
     model_prefix: modelPrefixSchema.optional(),
+    block_peak_priced_models: z.boolean().optional(),
   }),
 });
 // --- ollama ---

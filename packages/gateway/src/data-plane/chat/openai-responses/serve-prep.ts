@@ -6,7 +6,7 @@ import type { OpenAIResponsesStatefulStore } from './items/store.ts';
 import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import type { AffinityCandidateSelection } from '../shared/affinity/index.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
-import { noViableCandidateFailure, tryCatchChatServeFailure } from '../shared/errors.ts';
+import { noViableCandidateFailure, peakBlockedFailure, tryCatchChatServeFailure } from '../shared/errors.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { CanonicalOpenAIResponsesPayload, OpenAIResponsesStreamEvent } from '@floway-dev/protocols/openai-responses';
@@ -83,7 +83,7 @@ export const prepareOpenAIResponsesServePlan = async (args: {
   const { payload, ctx } = args;
   const store = ctx.store;
   const prepared = await expandPreviousResponseId(payload, store);
-  const { candidates, sawModel, failedUpstreams } = await enumerateModelCandidates({
+  const { candidates, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
     upstreamIds: ctx.upstreamIds,
     model: prepared.model,
     kind: 'chat',
@@ -111,6 +111,12 @@ export const prepareOpenAIResponsesServePlan = async (args: {
   await store.stageInputItems(payload.input);
 
   if (selection.candidates.length === 0) {
+    if (peakBlock !== null) {
+      return {
+        kind: 'failure',
+        result: renderOpenAIResponsesFailure(peakBlockedFailure(prepared.model, peakBlock)),
+      };
+    }
     return {
       kind: 'failure',
       result: renderOpenAIResponsesFailure(noViableCandidateFailure(sawModel, prepared.model, failedUpstreams)),

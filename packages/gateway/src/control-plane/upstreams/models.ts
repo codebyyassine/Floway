@@ -35,6 +35,7 @@ export const previewModels = async (c: CtxWithJson<typeof previewModelsBody>) =>
     proxyFallbackList: record.proxy_fallback_list,
     modelPrefix: record.model_prefix ?? null,
     hue: record.hue ?? 0,
+    blockPeakPricedModels: record.block_peak_priced_models ?? false,
     config: record.config,
     state: record.state,
     modelsCache: null,

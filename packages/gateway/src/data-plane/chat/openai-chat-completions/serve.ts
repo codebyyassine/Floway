@@ -5,7 +5,7 @@ import { enumerateModelCandidates } from '../../providers/resolution.ts';
 import { iterateCandidates } from '../../shared/iterate-candidates.ts';
 import { selectAffinityCandidates } from '../shared/affinity/index.ts';
 import { prepareCodexSessionAffinity } from '../shared/codex-session-affinity.ts';
-import { noViableCandidateFailure } from '../shared/errors.ts';
+import { noViableCandidateFailure, peakBlockedFailure } from '../shared/errors.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { OpenAIChatCompletionsPayload, OpenAIChatCompletionsStreamEvent } from '@floway-dev/protocols/openai-chat-completions';
@@ -21,7 +21,7 @@ export interface OpenAIChatCompletionsServeGenerateArgs {
 export const openaiChatCompletionsServe = {
   generate: async (args: OpenAIChatCompletionsServeGenerateArgs): Promise<ExecuteResult<ProtocolFrame<OpenAIChatCompletionsStreamEvent>>> => {
     const { payload, ctx, headers } = args;
-    const { candidates: enumerated, sawModel, failedUpstreams } = await enumerateModelCandidates({
+    const { candidates: enumerated, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
       upstreamIds: ctx.upstreamIds,
       model: payload.model,
       kind: 'chat',
@@ -32,7 +32,10 @@ export const openaiChatCompletionsServe = {
     const viable = enumerated.filter(c => openaiChatCompletionsTarget.canServe(c.model.endpoints));
     const selection = selectAffinityCandidates(viable, affinity);
     if ('kind' in selection) return renderOpenAIChatCompletionsFailure(selection);
-    if (selection.candidates.length === 0) return renderOpenAIChatCompletionsFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams));
+    if (selection.candidates.length === 0) {
+      if (peakBlock !== null) return renderOpenAIChatCompletionsFailure(peakBlockedFailure(payload.model, peakBlock));
+      return renderOpenAIChatCompletionsFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams));
+    }
 
     const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () =>
       (await translateOpenAIChatCompletionsViaOpenAIResponses(structuredClone(payload), { model: payload.model })).target);

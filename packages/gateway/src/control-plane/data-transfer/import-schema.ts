@@ -168,6 +168,7 @@ const upstreamWireSchema = parsedBy((value): UpstreamRecord => {
     proxyFallbackList: parseValue(proxyFallbackListSchema, wire.proxy_fallback_list),
     modelPrefix: parseValue(parsedBy(normalizeModelPrefix).optional().default(null), wire.model_prefix),
     hue: parseValue(parsedBy(normalizeUpstreamHue), wire.hue),
+    blockPeakPricedModels: parseValue(z.boolean({ error: 'block_peak_priced_models must be a boolean' }).optional().default(false), wire.block_peak_priced_models),
     config: wire.config,
     state: normalizeUpstreamState(kind, wire.state),
     modelsCache: null,

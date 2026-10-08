@@ -286,6 +286,7 @@ export const createCustomProvider = (record: UpstreamRecord): Provider => {
     // this provider, so the client's copy is neither needed nor forwarded.
     inboundHeaderAllowlist: config.ingressHeadersRules.flatMap(rule => rule.value === null ? [rule.key] : []),
     disabledPublicModelIds: record.disabledPublicModelIds,
+    blockPeakPricedModels: record.blockPeakPricedModels ?? false,
     modelPrefix: record.modelPrefix,
     modelsCache: record.modelsCache,
     instance,

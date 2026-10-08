@@ -28,6 +28,7 @@ const baseRecord = (overrides: Partial<StoredUpstreamRecord> = {}): StoredUpstre
   configVersion: 1,
   modelsCache: null,
   hue: 210,
+  blockPeakPricedModels: false,
   ...overrides,
 });
 const identityFor = modelsRefreshIdentity;
