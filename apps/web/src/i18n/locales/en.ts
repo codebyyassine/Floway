@@ -90,6 +90,7 @@ const en = {
         requests: 'Requests',
         usage: 'Usage',
         performance: 'Performance',
+        pricingPeriod: 'Pricing Period',
         users: 'Users',
         backupRestore: 'Backup / Restore',
         settings: 'Settings',
@@ -115,6 +116,8 @@ const en = {
             'Track token usage and traffic volume across users, keys, models, and upstreams',
         performance:
             'Monitor latency, throughput, and upstream performance signals',
+        pricingPeriod:
+            'Check the live DeepSeek peak or off-peak pricing period and the next switch',
         users:
             'Manage console users, permissions, telemetry access, and upstream scopes',
         backupRestore:

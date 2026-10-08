@@ -1,6 +1,7 @@
 import {
   Chat20Color,
   Clipboard20Color,
+  Clock20Color,
   Cloud20Color,
   Database20Color,
   DataPie20Color,
@@ -65,6 +66,7 @@ export const navGroups: NavGroup[] = [
       { to: '/dashboard/monitor/requests', labelKey: 'dashboard.nav.requests', icon: Clipboard20Color },
       { to: '/dashboard/monitor/usage', labelKey: 'dashboard.nav.usage', icon: DataPie20Color },
       { to: '/dashboard/monitor/performance', labelKey: 'dashboard.nav.performance', icon: Gauge20Color },
+      { to: '/dashboard/monitor/pricing-period', labelKey: 'dashboard.nav.pricingPeriod', icon: Clock20Color },
     ],
   },
   {
