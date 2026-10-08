@@ -47,6 +47,8 @@ const baseAccount = {
   openaiDeviceId: '11111111-2222-4333-8444-555555555555',
   accessToken: null,
   quotaSnapshot: null as CodexQuotaSnapshotEntryMap | null,
+  usageProbeAttemptedAt: null as number | null,
+  usageProbeError: null as string | null,
 };
 
 let current: UpstreamRecord | null;

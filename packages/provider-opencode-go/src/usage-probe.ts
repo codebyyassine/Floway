@@ -130,7 +130,7 @@ export const refreshOpencodeGoUsageProbe = async (
   return observation;
 };
 
-const isOpencodeGoUsageProbeDue = (state: OpencodeGoUpstreamState, now: number): boolean => {
+export const isOpencodeGoUsageProbeDue = (state: OpencodeGoUpstreamState, now: number): boolean => {
   const probe = state.usageProbe;
   return probe === null || now - probe.attemptedAt >= OPENCODE_GO_USAGE_PROBE_MIN_INTERVAL_MS;
 };

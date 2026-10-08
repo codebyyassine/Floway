@@ -55,6 +55,16 @@ export const CODEX_MODELS_PATH = '/codex/models';
 export const CODEX_RATE_LIMIT_RESET_CREDITS_PATH = '/wham/rate-limit-reset-credits';
 export const CODEX_RATE_LIMIT_RESET_CREDITS_CONSUME_PATH = '/wham/rate-limit-reset-credits/consume';
 
+// Token-free usage read on the same WHAM surface: unlike a minimal
+// /codex/responses call it consumes no quota, so the gateway polls it on a
+// debounce rather than harvesting headers off traffic. Same data-plane auth
+// (bearer + ChatGPT-Account-Id). Body shape independently described by three
+// third-party gateways that already read it:
+// https://github.com/james-6-23/codex2api/blob/main/proxy/usage_wham.go
+// https://github.com/can1357/oh-my-pi/blob/main/packages/ai/src/usage/openai-codex.ts
+// https://github.com/Wei-Shaw/sub2api/blob/main/backend/internal/service/openai_quota_service.go
+export const CODEX_USAGE_PATH = '/wham/usage';
+
 // Codex's image extension does not discover this model through /codex/models.
 // It owns the capability and sends the fixed model id to these provider-
 // relative endpoints instead.

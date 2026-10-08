@@ -41,6 +41,8 @@ const baseAccount = {
   openaiDeviceId: '11111111-2222-4333-8444-555555555555',
   accessToken: null as CodexAccessTokenEntry | null,
   quotaSnapshot: null,
+  usageProbeAttemptedAt: null as number | null,
+  usageProbeError: null as string | null,
 };
 
 const farFutureMs = Date.now() + 24 * 60 * 60 * 1000;

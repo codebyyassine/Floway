@@ -3,6 +3,7 @@ import type { ScheduledMaintenanceRepo } from './repo/types.ts';
 import { sweepExpirations } from './scheduled/expiration-sweeps.ts';
 import { scheduleModelsCacheRefreshes } from './scheduled/models-refresh.ts';
 import { collectSpilledFiles } from './scheduled/spilled-files.ts';
+import { scheduleUsageProbeRefreshes } from './scheduled/usage-refresh.ts';
 import { getImageCacheStore, type BackgroundScheduler } from '@floway-dev/platform';
 
 const MAINTENANCE_CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
@@ -94,6 +95,7 @@ export const runScheduledMaintenance = async (
   };
   await Promise.all([
     runSweep('models.refresh', () => scheduleModelsCacheRefreshes(runtimeLocation, backgroundScheduler)),
+    runSweep('usage.refresh', () => scheduleUsageProbeRefreshes(runtimeLocation, backgroundScheduler)),
     storageMaintenance(),
   ]);
 };

@@ -90,6 +90,18 @@ export interface CodexAccountCredential {
   // on a shallow copy, so consumers can rely on the typed `null` slot here.
   accessToken: CodexAccessTokenEntry | null;
   quotaSnapshot: CodexQuotaSnapshotEntryMap | null;
+  // Active usage-probe bookkeeping for GET /wham/usage (see usage.ts), kept
+  // beside the passive quotaSnapshot slot the probe projects into.
+  // usageProbeAttemptedAt is unix ms and anchors the probe debounce;
+  // usageProbeError carries the last probe failure and is cleared by the next
+  // success. Both were added after the initial schema; absent on pre-existing
+  // rows. The asserter accepts that absent-key case unchanged;
+  // `readCodexUpstreamState` is the boundary that normalizes absent → `null`
+  // on a shallow copy, so consumers can rely on the typed `null` slot here.
+  // Both stay optional on the wire so existing fixtures keep passing — there
+  // is no DB migration for probe bookkeeping.
+  usageProbeAttemptedAt?: number | null;
+  usageProbeError?: string | null;
 }
 
 // Account-pool state. v1 always carries exactly one entry; the asserter
@@ -119,6 +131,8 @@ const ALLOWED_CREDENTIAL_KEYS_MAP: Record<keyof CodexAccountCredential, true> = 
   openaiDeviceId: true,
   accessToken: true,
   quotaSnapshot: true,
+  usageProbeAttemptedAt: true,
+  usageProbeError: true,
 };
 
 const CREDENTIAL_ALLOWED_KEYS: ReadonlySet<string> = new Set(Object.keys(ALLOWED_CREDENTIAL_KEYS_MAP));
@@ -222,6 +236,19 @@ const assertCodexAccountCredential = (value: unknown, where: string): void => {
   if (obj.quotaSnapshot !== undefined && obj.quotaSnapshot !== null) {
     assertCodexQuotaSnapshotEntryMap(obj.quotaSnapshot, `${where}.quotaSnapshot`);
   }
+  // Probe bookkeeping follows the same absent-key precedent as accessToken /
+  // quotaSnapshot above: absent is legacy, null is never-attempted, and only
+  // a present non-null value is shape-checked here.
+  if (obj.usageProbeAttemptedAt !== undefined && obj.usageProbeAttemptedAt !== null) {
+    if (typeof obj.usageProbeAttemptedAt !== 'number' || !Number.isFinite(obj.usageProbeAttemptedAt)) {
+      throw new TypeError(`${where}.usageProbeAttemptedAt must be a finite number or null when present`);
+    }
+  }
+  if (obj.usageProbeError !== undefined && obj.usageProbeError !== null) {
+    if (typeof obj.usageProbeError !== 'string') {
+      throw new TypeError(`${where}.usageProbeError must be a string or null when present`);
+    }
+  }
 };
 
 export function assertCodexUpstreamState(value: unknown): asserts value is CodexUpstreamState {
@@ -240,7 +267,7 @@ export function assertCodexUpstreamState(value: unknown): asserts value is Codex
 }
 
 // Boundary normalization: legacy rows may carry no `accessToken` /
-// `quotaSnapshot` key; the typed contract on `CodexAccountCredential`
+// `quotaSnapshot` / `usageProbeAttemptedAt` / `usageProbeError` key; the typed contract on `CodexAccountCredential`
 // promises `null` rather than `undefined`. Build a shallow copy of the
 // state with absent → `null` so consumers can rely on `=== null` checks
 // without seeing legacy rows escape unfilled. `raw` is left untouched, which
@@ -254,6 +281,8 @@ export const readCodexUpstreamState = (raw: unknown): CodexUpstreamState => {
       ...account,
       accessToken: account.accessToken ?? null,
       quotaSnapshot: account.quotaSnapshot ?? null,
+      usageProbeAttemptedAt: account.usageProbeAttemptedAt ?? null,
+      usageProbeError: account.usageProbeError ?? null,
     })),
   };
 };

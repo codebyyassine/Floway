@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 
 import { assertOpencodeGoUpstreamRecord } from '../src/config.ts';
+import { isOpencodeGoUsageProbeDue as isOpencodeGoUsageProbeDueFromIndex } from '../src/index.ts';
 import { readOpencodeGoUpstreamState } from '../src/state.ts';
 import {
   OPENCODE_GO_USAGE_PROBE_MIN_INTERVAL_MS,
@@ -203,4 +204,34 @@ test('the scheduler probes once, then debounces on the stored attempt time', asy
     await Promise.all(pending);
   });
   assertEquals(probes, 2);
+});
+
+test('the due-check predicate is reachable from the package entrypoint', () => {
+  const now = Date.now();
+  // No probe yet: an idle upstream with no reading is due.
+  assertEquals(isOpencodeGoUsageProbeDueFromIndex(readOpencodeGoUpstreamState(null), now), true);
+  // At the interval bound the probe is due again.
+  assertEquals(
+    isOpencodeGoUsageProbeDueFromIndex(
+      readOpencodeGoUpstreamState({ usageProbe: { attemptedAt: now - OPENCODE_GO_USAGE_PROBE_MIN_INTERVAL_MS, observation: null, error: null } }),
+      now,
+    ),
+    true,
+  );
+  // Past the interval bound the probe is due again.
+  assertEquals(
+    isOpencodeGoUsageProbeDueFromIndex(
+      readOpencodeGoUpstreamState({ usageProbe: { attemptedAt: now - OPENCODE_GO_USAGE_PROBE_MIN_INTERVAL_MS - 1, observation: null, error: null } }),
+      now,
+    ),
+    true,
+  );
+  // Below the interval bound the probe is debounced.
+  assertEquals(
+    isOpencodeGoUsageProbeDueFromIndex(
+      readOpencodeGoUpstreamState({ usageProbe: { attemptedAt: now - OPENCODE_GO_USAGE_PROBE_MIN_INTERVAL_MS + 1, observation: null, error: null } }),
+      now,
+    ),
+    false,
+  );
 });

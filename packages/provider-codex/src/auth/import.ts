@@ -60,6 +60,8 @@ const buildCodexImportResult = (credential: NormalizedCodexCredential, now: stri
         ...(credential.identity.planType === null ? {} : { planType: credential.identity.planType, planObservedAt: now }),
       },
       quotaSnapshot: null,
+      usageProbeAttemptedAt: null,
+      usageProbeError: null,
     }],
   },
 });
