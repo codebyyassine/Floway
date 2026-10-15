@@ -245,6 +245,8 @@ const upstreamSignals = (record: UpstreamRecord, t: TFunction, locale: string, n
   // An operator-configured endpoint publishes no account of its own to report on.
   case 'custom':
   case 'azure':
+  case 'opencode-go':
+  case 'opencode':
     return [];
   case 'copilot': return copilotSignals(record, t, locale);
   case 'codex': return codexSignals(record, t, locale, now);
@@ -261,6 +263,8 @@ const upstreamPlan = (record: UpstreamRecord): string | null => {
   switch (record.kind) {
   case 'custom':
   case 'azure':
+  case 'opencode-go':
+  case 'opencode':
     return null;
   case 'copilot': return copilotPlanLabel(record);
   case 'ollama': return ollamaPlanLabel(record);
