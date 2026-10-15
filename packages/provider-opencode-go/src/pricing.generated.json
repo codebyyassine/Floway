@@ -6,6 +6,17 @@
     "DeepSeek peak/off-peak split: `base` carries the authored peak rate (Base billing), `offPeak` the registry-published off-peak rate. Peak rates from https://api-docs.deepseek.com/quick_start/pricing; peak windows follow Beijing time with Chinese statutory holidays (https://github.com/NateScarlet/holiday-cn) fully off-peak."
   ],
   "base": {
+    "cat-jam-free": {
+      "input": "0",
+      "output": "0",
+      "cacheRead": "0"
+    },
+    "claude-haiku-5-5": {
+      "input": "0.1",
+      "output": "0.5",
+      "cacheRead": "0.01",
+      "cacheWrite": "0.125"
+    },
     "deepseek-v4-flash": {
       "input": "0.3",
       "output": "1.2",
@@ -25,6 +36,11 @@
       "input": "0.3",
       "output": "1.2",
       "cacheRead": "0.006"
+    },
+    "gemini-4-argon-contributor": {
+      "input": "4",
+      "output": "20",
+      "cacheRead": "0.2"
     },
     "glm-5.2": {
       "input": "1.4",
@@ -185,9 +201,21 @@
       "output": "0",
       "cacheRead": "0",
       "cacheWrite": "0"
+    },
+    "step-5-preview-free": {
+      "input": "0",
+      "output": "0",
+      "cacheRead": "0"
     }
   },
   "tiers": {
+    "claude-haiku-5-5": {
+      "threshold": 100000,
+      "input": "0.5",
+      "output": "2.5",
+      "cacheRead": "0.05",
+      "cacheWrite": "0.625"
+    },
     "gpt-5.6-luna": {
       "threshold": 272000,
       "input": "0.4",
