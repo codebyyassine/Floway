@@ -52,6 +52,7 @@ const makeRecord = (state: ClaudeCodeUpstreamState): UpstreamRecord => ({
   kind: 'claude-code',
   name: 'CC',
   enabled: true,
+  usageRefreshIntervalMinutes: 0,
   sortOrder: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -92,6 +93,7 @@ beforeEach(() => {
   vi.useRealTimers();
   seedAccount();
   initProviderRepo(() => ({
+    recordUpstreamMetric: async () => {},
     upstreams: {
       getById: async () => currentRecord,
       saveState: async (_id, mutate) => {

@@ -1,7 +1,7 @@
 import type { WebSearchConfig, WebSearchProviderName } from '../shared/web-search-providers.ts';
 import type { AgentSetupRepository } from '@floway-dev/agent-setup';
 import type { AliasSelection, AliasTarget, AnnouncedMetadata, BillingMetric, DecimalString, ModelKind, PricingSelector } from '@floway-dev/protocols/common';
-import type { PerformanceTelemetryContext, UpstreamModelsCache, UpstreamRecord } from '@floway-dev/provider';
+import type { PerformanceTelemetryContext, UpstreamMetricIdentity, UpstreamModelsCache, UpstreamRecord } from '@floway-dev/provider';
 
 // Provider config, flag overrides, and catalog transport advance this version;
 // runtime state and non-model metadata do not.
@@ -152,7 +152,7 @@ export interface PerformanceDimensions extends PerformanceTelemetryContext {
   hour: string;              // 'YYYY-MM-DDTHH'
 }
 
-// TPOT is measurable only when at least two output tokens are streamed; the
+// TPOT is measurable only when at least two output tokens are reported; the
 // caller (recordPerformance) enforces that gate before setting `tpotUs`. A
 // TTFT-only sample omits it entirely.
 //
@@ -572,8 +572,25 @@ export interface CodexSessionAffinityRepo {
   replace(apiKeyId: string, sessionKey: string, expectedRevision: number, upstreamId: string): Promise<void>;
 }
 
+export interface UpstreamMetricRecord extends UpstreamMetricIdentity {
+  upstreamId: string;
+  timestamp: number;
+  value: number;
+}
+
+export interface UpstreamMetricsRepo {
+  listAll(): Promise<UpstreamMetricRecord[]>;
+  set(record: UpstreamMetricRecord): Promise<void>;
+  deleteAll(): Promise<void>;
+  record(record: UpstreamMetricRecord): Promise<void>;
+  // The latest sample of each series in every `step`-wide bucket counted from
+  // `start`, which is Prometheus's range-query semantics for gauges.
+  query(upstreamId: string, start: number, end: number, step: number): Promise<UpstreamMetricRecord[]>;
+}
+
 export interface Repo {
   codexSessionAffinity: CodexSessionAffinityRepo;
+  upstreamMetrics: UpstreamMetricsRepo;
   apiKeys: ApiKeyRepo;
   users: UsersRepo;
   sessions: SessionsRepo;

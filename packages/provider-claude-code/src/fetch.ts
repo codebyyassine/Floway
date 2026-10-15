@@ -9,9 +9,11 @@ import {
   replaceSoleAccount,
   type ClaudeCodeAccountCredential,
 } from './state.ts';
-import type { AnthropicMessagesPayload, AnthropicMessagesStreamEvent } from '@floway-dev/protocols/anthropic-messages';
+import { claudeCodeQuotaMetrics } from './upstream-metrics.ts';
+import type { AnthropicMessagesPayload, AnthropicMessagesStreamEventEx } from '@floway-dev/protocols/anthropic-messages';
 import { parseAnthropicMessagesStream } from '@floway-dev/protocols/anthropic-messages';
 import type { ProtocolFrame, SseFrame } from '@floway-dev/protocols/common';
+import { recordUpstreamMetrics } from '@floway-dev/provider';
 import {
   getProviderRepo,
   headersForAnthropicMessagesCall,
@@ -73,7 +75,7 @@ interface StreamDiagnosticFrame {
 }
 
 const observedClaudeCodeMessagesStream = async function* (
-  events: AsyncIterable<ProtocolFrame<AnthropicMessagesStreamEvent>>,
+  events: AsyncIterable<ProtocolFrame<AnthropicMessagesStreamEventEx>>,
   options: {
     upstreamId: string;
     model: string;
@@ -82,7 +84,7 @@ const observedClaudeCodeMessagesStream = async function* (
     frames: StreamDiagnosticFrame[];
     rawFrameCount: () => number;
   },
-): AsyncGenerator<ProtocolFrame<AnthropicMessagesStreamEvent>> {
+): AsyncGenerator<ProtocolFrame<AnthropicMessagesStreamEventEx>> {
   let terminalEvent: 'message_stop' | 'error' | null = null;
   let streamError: unknown;
   try {
@@ -160,6 +162,7 @@ const persistQuotaSnapshot = async (upstreamId: string, snapshot: ClaudeCodeQuot
       quotaSnapshot: { fetchedAt, data: snapshot },
     }));
   });
+  await recordUpstreamMetrics(upstreamId, claudeCodeQuotaMetrics(snapshot), fetchedAt);
   const priorStatus = previousAccount.quotaSnapshot === null ? null : previousAccount.quotaSnapshot.data.status;
   // Emit only on transition. Persisting every response would flood the log
   // with one event per request; the dashboard already reads the snapshot
@@ -345,7 +348,7 @@ const maybePersistTerminalFromBodyFireAndForget = (
 const syntheticReturn = (
   upstreamModelId: string,
   response: Response,
-): ProviderStreamResult<AnthropicMessagesStreamEvent> => ({
+): ProviderStreamResult<AnthropicMessagesStreamEventEx> => ({
   ok: false,
   modelKey: upstreamModelId,
   response,
@@ -357,7 +360,7 @@ const syntheticReturn = (
 const ensureOrSession503 = async (
   opts: CallClaudeCodeAnthropicMessagesOptions,
   upstreamModelId: string,
-): Promise<EnsuredAccessToken | ProviderStreamResult<AnthropicMessagesStreamEvent>> => {
+): Promise<EnsuredAccessToken | ProviderStreamResult<AnthropicMessagesStreamEventEx>> => {
   try {
     return await ensureClaudeCodeAccessToken({
       upstreamId: opts.upstreamId,
@@ -375,7 +378,7 @@ const ensureOrSession503 = async (
 
 export const callClaudeCodeAnthropicMessages = async (
   opts: CallClaudeCodeAnthropicMessagesOptions,
-): Promise<ProviderStreamResult<AnthropicMessagesStreamEvent>> => {
+): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => {
   // `opts.model.id` is the public alias on the catalog; the dated upstream id
   // Anthropic expects on the wire — and that the pricing table keys by — rides
   // on `opts.model.providerData.upstreamModelId`. Resolve once so synthetic
@@ -416,7 +419,7 @@ const performUpstreamCall = async (
   upstreamModelId: string,
   accessToken: EnsuredAccessToken,
   alreadyRetried: boolean,
-): Promise<ProviderStreamResult<AnthropicMessagesStreamEvent>> => {
+): Promise<ProviderStreamResult<AnthropicMessagesStreamEventEx>> => {
   let responseHeaders: Headers | undefined;
   let rawSseFrameCount = 0;
   const rawSseFrames: StreamDiagnosticFrame[] = [];

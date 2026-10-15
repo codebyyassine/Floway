@@ -343,6 +343,7 @@ test('PATCH /api/upstreams keeps Azure as a single endpoint config', async () =>
     kind: 'azure',
     name: 'Azure Single Endpoint',
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-05-22T00:00:00.000Z',
     updatedAt: '2026-05-22T00:00:00.000Z',
@@ -390,6 +391,7 @@ test('PATCH /api/upstreams round-trips a flat per-model flagOverrides map', asyn
     kind: 'azure',
     name: 'Azure Per-Model Flags',
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-07-08T00:00:00.000Z',
     updatedAt: '2026-07-08T00:00:00.000Z',
@@ -435,6 +437,7 @@ test('GET /api/upstreams attaches models-cache freshness to every row', async ()
   const baseRow = {
     kind: 'custom' as const,
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-06-01T00:00:00.000Z',
     updatedAt: '2026-06-01T00:00:00.000Z',
@@ -527,6 +530,7 @@ test('GET /api/upstream-options returns the minimal picker shape to admin and no
     kind: 'custom',
     name: 'Disabled Custom',
     enabled: false,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 5,
     createdAt: '2026-05-01T00:00:00.000Z',
     updatedAt: '2026-05-01T00:00:00.000Z',
@@ -739,6 +743,7 @@ test('POST /api/upstreams/:id/list-models reads the saved config and publishes a
     kind: 'custom',
     name: 'Refresh Custom',
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-05-22T00:00:00.000Z',
     updatedAt: '2026-05-22T00:00:00.000Z',
@@ -2719,6 +2724,7 @@ test('POST /api/upstreams/preview-models never writes the matching saved row', a
     kind: 'custom',
     name: 'Original',
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-05-22T00:00:00.000Z',
     updatedAt: '2026-05-22T00:00:00.000Z',
@@ -2814,8 +2820,10 @@ test('GET /api/upstreams/blueprint serves the record a new upstream starts as wi
   const copilotPreview = (await (await requestApp('/api/upstreams/blueprint?kind=copilot', { headers: { 'x-floway-session': adminSession } })).json()) as JsonObject;
   assertEquals(copilotPreview.flag_defaults['strip-billing-attribution'], true);
   assertEquals(copilotPreview.flag_defaults['rewrite-mid-conv-system-to-user'], false);
+  assertEquals(copilotPreview.flag_defaults['rewrite-disallowed-mid-conv-system-to-user'], false);
   const ccPreview = (await (await requestApp('/api/upstreams/blueprint?kind=claude-code', { headers: { 'x-floway-session': adminSession } })).json()) as JsonObject;
   assertEquals(ccPreview.flag_defaults['strip-billing-attribution'], false);
+  assertEquals(ccPreview.flag_defaults['rewrite-disallowed-mid-conv-system-to-user'], true);
 });
 
 test('GET /api/upstreams/:id returns the full record with fresh Codex quota for the edit page', async () => {
@@ -2947,6 +2955,35 @@ test('POST /api/upstreams/copilot/quota projects the GitHub body and persists it
   const stored = await repo.upstreams.getById(copilotUpstream.id);
   const snapshot = (stored?.state as { quotaSnapshot: { data: { quotas: Record<string, JsonObject> } } }).quotaSnapshot;
   assertEquals(snapshot.data.quotas.premium_interactions.quota_remaining, 270);
+});
+
+test('POST /api/upstreams/copilot/quota rejects malformed entitlement before persisting seat or quota state', async () => {
+  const { repo, adminSession, copilotUpstream } = await setupAppTest();
+  const before = await repo.upstreams.getById(copilotUpstream.id);
+  const envelope = envelopeFromRecord(await getRecord(repo, copilotUpstream.id));
+
+  await withMockedFetch(
+    async (request: Request) => {
+      if (request.url === 'https://api.github.com/copilot_internal/user') {
+        return jsonResponse({
+          ...sampleCopilotQuotaBody,
+          quota_snapshots: {
+            ...sampleCopilotQuotaBody.quota_snapshots,
+            premium_interactions: { ...sampleCopilotQuotaBody.quota_snapshots.premium_interactions, entitlement: -2 },
+          },
+        });
+      }
+      throw new Error(`Unhandled fetch ${request.url}`);
+    },
+    async () => {
+      const resp = await requestApp('/api/upstreams/copilot/quota', authed(adminSession, { record: envelope }));
+      assertEquals(resp.status, 502);
+      assertStringIncludes(((await resp.json()) as { error: string }).error, 'Invalid Copilot quota entitlement');
+    },
+  );
+
+  const after = await repo.upstreams.getById(copilotUpstream.id);
+  assertEquals(after?.state, before?.state);
 });
 
 // The passive header path refuses to write an empty snapshot so a good
@@ -3202,4 +3239,64 @@ test('POST /api/upstreams/claude-code/oauth/refresh recovers as success when a s
   assertEquals(storedState.accounts[0].state, 'active');
   assertEquals(storedState.accounts[0].refreshToken, 'rt_sibling_rotated');
   assertEquals(storedState.accounts[0].accessToken?.token, 'at_sibling_rotated');
+});
+
+test('usage refresh defaults off and can be opted in and out without changing model configuration', async () => {
+  const { repo, adminSession } = await setupAppTest();
+  await repo.upstreams.deleteAll();
+  const created = await requestApp('/api/upstreams', authed(adminSession, createBody({ kind: 'copilot', config: copilotConfig, state: null })));
+  assertEquals(created.status, 201);
+  const body = await created.json() as JsonObject;
+  assertEquals(body.usage_refresh_interval_minutes, 0);
+  const version = (await repo.upstreams.getById(body.id))!.configVersion;
+  for (const interval of [1, 15, 0]) {
+    const response = await requestApp(`/api/upstreams/${body.id}`, {
+      ...authed(adminSession, { usage_refresh_interval_minutes: interval }), method: 'PATCH',
+    });
+    assertEquals(response.status, 200);
+    assertEquals((await response.json() as JsonObject).usage_refresh_interval_minutes, interval);
+    const saved = (await repo.upstreams.getById(body.id))!;
+    assertEquals(saved.usageRefreshIntervalMinutes, interval);
+    assertEquals(saved.configVersion, version);
+  }
+});
+
+test('usage refresh rejects negative, fractional and boolean intervals', async () => {
+  const { adminSession } = await setupAppTest();
+  const created = await requestApp('/api/upstreams', authed(adminSession, createBody({ kind: 'copilot', config: copilotConfig, state: null })));
+  const body = await created.json() as JsonObject;
+  for (const interval of [-1, 1.5, true]) {
+    const response = await requestApp(`/api/upstreams/${body.id}`, {
+      ...authed(adminSession, { usage_refresh_interval_minutes: interval }), method: 'PATCH',
+    });
+    assertEquals(response.status, 400);
+  }
+});
+
+test('manual Ollama usage refresh commits activity and current balance together', async () => {
+  const { repo, adminSession } = await setupAppTest();
+  const record = buildCustomUpstreamRecord({
+    id: 'up_ollama_manual', kind: 'ollama',
+    config: { baseUrl: 'https://ollama.com', apiKey: 'key', cloudUsage: true, models: [] }, state: null,
+  });
+  await saveUpstreamForTest(repo.upstreams, record);
+  const paths: string[] = [];
+  await withMockedFetch(request => {
+    const path = new URL(request.url).pathname;
+    paths.push(path);
+    if (path === '/api/usage') return jsonResponse({ range: '7d', scope: 'self', from: '2026-10-04T00:00:00Z', until: '2026-10-11T04:00:00Z', totals: { request_count: 15, usage_usd: 3.5 } });
+    if (path === '/api/balance') return jsonResponse({ included: { balance_usd: 42, allowance_usd: 60, period: { from: '2026-10-01T00:00:00Z', until: '2026-11-01T00:00:00Z' } }, purchased: { balance_usd: 25 } });
+    if (path === '/api/me') return jsonResponse({ name: 'Tester', email: 'test@example.com', plan: 'pro' });
+    throw new Error(`Unexpected Ollama request ${path}`);
+  }, async () => {
+    const response = await requestApp('/api/upstreams/ollama/usage', authed(adminSession, { record: envelopeFromRecord(record) }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as JsonObject;
+    assertEquals(body.observation.data.usage.totals.usage_usd, 3.5);
+    assertEquals(body.observation.data.balance.purchased.balance_usd, 25);
+    const state = (await repo.upstreams.getById(record.id))!.state as JsonObject;
+    assertEquals(state.usageProbe.observation.data.usage.totals.usage_usd, 3.5);
+    assertEquals(state.usageProbe.observation.data.balance.included.balance_usd, 42);
+  });
+  assertEquals(paths.toSorted(), ['/api/balance', '/api/me', '/api/usage']);
 });

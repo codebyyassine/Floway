@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 
 import { wrapGeminiGenerateContentAffinityEgress } from './affinity/egress.ts';
-import { geminiGenerateContentStatusForHttpStatus } from './errors.ts';
+import { geminiGenerateContentInternalErrorPayload, geminiGenerateContentStatusForHttpStatus } from './errors.ts';
 import type { GatewayCtx } from '../../shared/gateway-ctx.ts';
 import { type StreamCompletion, writeSSEFrames } from '../../shared/sse.ts';
 import { recordFailedRequest } from '../../shared/telemetry/performance.ts';
@@ -11,7 +11,7 @@ import { tokenUsageFromBillableUsage } from '../../shared/telemetry/usage.ts';
 import { forwardUpstreamHeaders, mergeForwardedUpstreamHeaders } from '../../shared/upstream-response.ts';
 import { affinityEgressOptions } from '../shared/affinity/index.ts';
 import { SourceStreamState, eventResultMetadata, plainResultToResponse } from '../shared/respond.ts';
-import { eventFrame, type ProtocolFrame, sseCommentFrame, sseFrame } from '@floway-dev/protocols/common';
+import { eventFrame, type ProtocolFrame, sseCommentFrame } from '@floway-dev/protocols/common';
 import { geminiGenerateContentProtocolFrameToSSEFrame, GEMINI_GENERATE_CONTENT_MISSING_TERMINAL_MESSAGE, isGeminiGenerateContentErrorEvent, isGeminiGenerateContentTerminalEvent, collectGeminiGenerateContentProtocolEventsToResult } from '@floway-dev/protocols/gemini-generate-content';
 import type { GeminiGenerateContentErrorResponse, GeminiGenerateContentStreamEvent } from '@floway-dev/protocols/gemini-generate-content';
 import { type ExecuteResult, type PlainResult, type ApiErrorResult, type InternalDebugError, toInternalDebugError, decodeApiErrorBody } from '@floway-dev/provider';
@@ -35,7 +35,7 @@ export const respondGeminiGenerateContent = async (
   if (result.type === 'internal-error') {
     recordFailedRequest(ctx, result.performance);
     ctx.dump?.failed(result.error.message);
-    return geminiGenerateContentErrorResponse(result.status, result.error.message, internalDebugFields(result.error));
+    return geminiGenerateContentErrorResponse(result.status, result.error.message, result.error);
   }
 
   if (result.type === 'plain') {
@@ -87,33 +87,17 @@ export const respondGeminiGenerateContent = async (
 
 // --- error rendering: Google-RPC envelope ---
 
-type GeminiGenerateContentErrorDebugFields = Partial<Pick<InternalDebugError, 'type' | 'name' | 'stack' | 'cause'>> & { target_api?: string };
-
-type GeminiGenerateContentErrorStatusPayload = {
-  error: GeminiGenerateContentErrorResponse['error'] & GeminiGenerateContentErrorDebugFields;
-};
-
 const googleRpcHttpStatusCode = (status: number): number => (Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500);
 
-const geminiGenerateContentRpcErrorPayload = (status: number, message: string, debug: GeminiGenerateContentErrorDebugFields = {}): GeminiGenerateContentErrorStatusPayload => {
+const geminiGenerateContentRpcErrorPayload = (status: number, message: string): GeminiGenerateContentErrorResponse => {
   const code = googleRpcHttpStatusCode(status);
   return {
-    error: { code, message, status: geminiGenerateContentStatusForHttpStatus(code), ...debug },
+    error: { code, message, status: geminiGenerateContentStatusForHttpStatus(code) },
   };
 };
 
-const internalDebugFields = (error: InternalDebugError): GeminiGenerateContentErrorDebugFields => ({
-  type: error.type,
-  name: error.name,
-  stack: error.stack,
-  cause: error.cause,
-  ...(error.target_api ? { target_api: error.target_api } : {}),
-});
-
-const geminiGenerateContentInternalRpcErrorPayload = (status: number, error: unknown): GeminiGenerateContentErrorStatusPayload => {
-  const debug = toInternalDebugError(error);
-  return geminiGenerateContentRpcErrorPayload(status, debug.message, internalDebugFields(debug));
-};
+const geminiGenerateContentInternalRpcErrorPayload = (status: number, error: unknown): GeminiGenerateContentErrorResponse =>
+  geminiGenerateContentInternalErrorPayload(googleRpcHttpStatusCode(status), toInternalDebugError(error));
 
 // Response builders. The count_tokens path under `http.ts` reuses them
 // alongside the error renderer for its synthesized JSON envelope.
@@ -127,10 +111,11 @@ export const geminiGenerateContentInternalRpcErrorResponse = (status: number, er
   return Response.json(payload, { status: payload.error.code });
 };
 
-const geminiGenerateContentErrorResponse = (status: number, message: string, debug: GeminiGenerateContentErrorDebugFields = {}): Response => {
+const geminiGenerateContentErrorResponse = (status: number, message: string, error?: InternalDebugError): Response => {
   // For gateway-minted errors, a non-500 that maps to INTERNAL is coerced to 500.
   const code = geminiGenerateContentStatusForHttpStatus(status) === 'INTERNAL' && status !== 500 ? 500 : status;
-  return Response.json({ error: { code, message, status: geminiGenerateContentStatusForHttpStatus(code), ...debug } }, { status: code });
+  const payload = error === undefined ? geminiGenerateContentRpcErrorPayload(code, message) : geminiGenerateContentInternalErrorPayload(code, error);
+  return Response.json(payload, { status: code });
 };
 
 const geminiGenerateContentApiErrorResponse = (error: ApiErrorResult): Response => googleRpcErrorPassthroughResponse(error) ?? geminiGenerateContentErrorResponse(error.status, apiErrorMessage(error));
@@ -210,6 +195,6 @@ const geminiGenerateContentSseFrames = async function* (frames: AsyncIterable<Pr
     state.failed = true;
     const event = geminiGenerateContentStreamErrorEvent(error);
     ctx.dump?.frame(eventFrame(event));
-    yield sseFrame(JSON.stringify(event));
+    yield geminiGenerateContentProtocolFrameToSSEFrame(eventFrame(event))!;
   }
 };

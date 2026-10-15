@@ -20,6 +20,7 @@ const buildRecord = (overrides: Partial<UpstreamRecord> = {}): UpstreamRecord =>
   modelPrefix: null,
   modelsCache: null,
   hue: 210,
+      usageRefreshIntervalMinutes: 0,
   ...overrides,
 } as UpstreamRecord);
 

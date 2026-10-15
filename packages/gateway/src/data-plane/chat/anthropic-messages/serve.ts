@@ -8,10 +8,11 @@ import { selectAffinityCandidates } from '../shared/affinity/index.ts';
 import { prepareCodexSessionAffinity } from '../shared/codex-session-affinity.ts';
 import { noViableCandidateFailure, peakBlockedFailure } from '../shared/errors.ts';
 import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
-import { parseAnthropicBetaHeader, type AnthropicMessagesPayload, type AnthropicMessagesStreamEvent } from '@floway-dev/protocols/anthropic-messages';
+import { serializeAnthropicMessagesStream, shouldSerializeStreamItems } from '../shared/stream-compatibility/index.ts';
+import { parseAnthropicBetaHeader, type AnthropicMessagesPayload, type AnthropicMessagesStreamEventEx } from '@floway-dev/protocols/anthropic-messages';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
-import type { ExecuteResult, PlainResult } from '@floway-dev/provider';
-import { translateAnthropicMessagesViaOpenAIResponses } from '@floway-dev/translate';
+import { providerModelOf, type ExecuteResult, type PlainResult } from '@floway-dev/provider';
+
 
 export interface AnthropicMessagesServeGenerateArgs {
   readonly payload: AnthropicMessagesPayload;
@@ -26,7 +27,7 @@ export interface AnthropicMessagesServeCountTokensArgs {
 }
 
 export const anthropicMessagesServe = {
-  generate: async (args: AnthropicMessagesServeGenerateArgs): Promise<ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEvent>>> => {
+  generate: async (args: AnthropicMessagesServeGenerateArgs): Promise<ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEventEx>>> => {
     const { payload, ctx, headers } = args;
     const anthropicBeta = parseAnthropicBetaHeader(headers.get('anthropic-beta'));
     const { candidates: enumerated, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({
@@ -45,11 +46,7 @@ export const anthropicMessagesServe = {
       return renderAnthropicMessagesFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams), 'generate');
     }
 
-    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => {
-      const prepared = prepareAnthropicMessagesWebSearchShimRequest(structuredClone(payload));
-      if (prepared.type !== 'ok') return null;
-      return (await translateAnthropicMessagesViaOpenAIResponses(prepared.payload, { model: payload.model })).target;
-    });
+    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => null);
     // Try each affinity-selected candidate in order. A successful attempt (SSE
     // stream opened) is the final answer; an api-error or internal-error
     // from one candidate falls through to the next so the gateway absorbs
@@ -63,16 +60,16 @@ export const anthropicMessagesServe = {
       'chat',
       async candidate => {
         const result = await anthropicMessagesAttempt.generate({ payload: selection.payloadFor(candidate), ctx, candidate, headers, anthropicBeta });
-        if (result.type === 'events') {
-          await session.succeeded(candidate);
-          ctx.affinity.select(candidate);
-        }
-        return result;
+        if (result.type !== 'events') return result;
+        await session.succeeded(candidate);
+        ctx.affinity.select(candidate);
+        const enabled = shouldSerializeStreamItems(providerModelOf(candidate).enabledFlags, 'anthropicMessages', headers.get('user-agent'));
+        return { ...result, events: serializeAnthropicMessagesStream(result.events, enabled) };
       },
     );
   },
 
-  countTokens: async (args: AnthropicMessagesServeCountTokensArgs): Promise<ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEvent>> | PlainResult> => {
+  countTokens: async (args: AnthropicMessagesServeCountTokensArgs): Promise<ExecuteResult<ProtocolFrame<AnthropicMessagesStreamEventEx>> | PlainResult> => {
     const { payload, ctx, headers } = args;
     const anthropicBeta = parseAnthropicBetaHeader(headers.get('anthropic-beta'));
     const { candidates: enumerated, sawModel, failedUpstreams, peakBlock } = await enumerateModelCandidates({

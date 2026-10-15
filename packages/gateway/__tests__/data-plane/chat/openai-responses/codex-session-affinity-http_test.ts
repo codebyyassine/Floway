@@ -16,7 +16,7 @@ import { createSqliteTestDb } from '../../../repo/test-sqlite.ts';
 import { saveUpstreamForTest } from '../../../repo/upstreams.ts';
 import { isReplayableBody } from '@floway-dev/http';
 import { getFetch, initFetch } from '@floway-dev/platform';
-import { openaiResponsesResultToEvents, type OpenAIResponsesResult } from '@floway-dev/protocols/openai-responses';
+import { openaiResponsesResultToEvents, type OpenAIResponsesResult, type OpenAIResponsesResultEx } from '@floway-dev/protocols/openai-responses';
 import type { UpstreamRecord } from '@floway-dev/provider';
 import type { CodexUpstreamState } from '@floway-dev/provider-codex';
 import { stubProviderModel } from '@floway-dev/test-utils';
@@ -51,11 +51,11 @@ const upstream = (id: string, sortOrder: number): UpstreamRecord => ({
 });
 
 const success = (): Response => {
-  const result: OpenAIResponsesResult = {
+  const result = {
     id: 'resp_upstream', object: 'response', model: 'gpt-5.4', status: 'completed',
-    output: [], output_text: '', error: null, incomplete_details: null,
-  };
-  const frames = openaiResponsesResultToEvents(result);
+    output: [], error: null, incomplete_details: null,
+  } as unknown as OpenAIResponsesResult;
+  const frames = openaiResponsesResultToEvents(result as OpenAIResponsesResultEx);
   return new Response(`${frames.map(({ event }) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`, {
     headers: { 'content-type': 'text/event-stream' },
   });

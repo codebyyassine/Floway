@@ -10,7 +10,7 @@ import type { ChatGatewayCtx } from '../shared/gateway-ctx.ts';
 import type { ProtocolFrame } from '@floway-dev/protocols/common';
 import type { OpenAIChatCompletionsPayload, OpenAIChatCompletionsStreamEvent } from '@floway-dev/protocols/openai-chat-completions';
 import type { ExecuteResult } from '@floway-dev/provider';
-import { translateOpenAIChatCompletionsViaOpenAIResponses } from '@floway-dev/translate';
+
 
 export interface OpenAIChatCompletionsServeGenerateArgs {
   readonly payload: OpenAIChatCompletionsPayload;
@@ -37,8 +37,7 @@ export const openaiChatCompletionsServe = {
       return renderOpenAIChatCompletionsFailure(noViableCandidateFailure(sawModel, payload.model, failedUpstreams));
     }
 
-    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () =>
-      (await translateOpenAIChatCompletionsViaOpenAIResponses(structuredClone(payload), { model: payload.model })).target);
+    const session = await prepareCodexSessionAffinity(selection.candidates, ctx, headers, async () => null);
     // Try each affinity-selected candidate in order. A successful attempt (SSE
     // stream opened) is the final answer; an api-error or internal-error
     // from one candidate falls through to the next so the gateway absorbs

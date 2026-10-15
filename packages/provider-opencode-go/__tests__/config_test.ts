@@ -23,6 +23,7 @@ const baseRecord: UpstreamRecord = {
   modelPrefix: null,
   modelsCache: null,
   hue: 210,
+      usageRefreshIntervalMinutes: 0,
 };
 
 test('assertOpencodeGoUpstreamRecord parses a bearer-keyed Floway OpenCode Go config', () => {

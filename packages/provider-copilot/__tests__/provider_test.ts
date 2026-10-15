@@ -34,6 +34,7 @@ const buildCopilotUpstream = (overrides: Partial<UpstreamRecord> = {}): Upstream
     kind: 'copilot',
     name: 'GitHub Copilot (tester)',
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-03-15T00:00:00.000Z',
     updatedAt: '2026-03-15T00:00:00.000Z',
@@ -88,6 +89,7 @@ const setupCopilotTest = async (recordOverrides: Partial<UpstreamRecord> = {}): 
     upstream = { ...upstream, state: next };
   };
   initProviderRepo(() => ({
+    recordUpstreamMetric: async () => {},
     upstreams: {
       getById: () => getByIdImpl(),
       saveState: (id, mutate) => saveStateImpl(id, mutate),
@@ -353,13 +355,13 @@ test('Copilot provider selects raw variants that support the target endpoint', a
 });
 
 test('Copilot provider runs the OpenAI Responses boundary chain on the compact path', async () => {
-  // The compact-path boundary registers payload mutators (force-store-false,
-  // strip-service-tier, strip-image-generation, ...) plus header derivers
-  // (set-vision-header, set-initiator-header). Driving callOpenAIResponses with
-  // action='compact' through a real upstream stub exercises the integration
-  // end-to-end: the payload mutators reach the wire body, the header
-  // derivers reach the wire request headers, and the compact-shaped envelope
-  // still comes back through `compactionResponse`.
+  // The compact-path boundary registers payload mutators (strip-service-tier,
+  // strip-image-generation, ...) plus header derivers (set-vision-header,
+  // set-initiator-header). Driving callOpenAIResponses with action='compact'
+  // through a real upstream stub exercises the integration end-to-end: the
+  // payload mutators reach the wire body, the header derivers reach the wire
+  // request headers, and the compact-shaped envelope still comes back through
+  // `compactionResponse`.
   const { copilotUpstream } = await setupCopilotTest();
   const instance = createCopilotProvider(copilotUpstream);
   const provider = instance.instance;
@@ -430,8 +432,8 @@ test('Copilot provider runs the OpenAI Responses boundary chain on the compact p
     },
   );
 
-  assertEquals(openaiResponsesBody?.store, false);
   if (!openaiResponsesBody) throw new Error('expected /responses to be hit');
+  assertEquals('store' in openaiResponsesBody, false);
   assertEquals('service_tier' in openaiResponsesBody, false);
   const wireInput = openaiResponsesBody?.input as Array<{ type: string }>;
   assertEquals(wireInput[0]?.type, 'additional_tools');
@@ -972,6 +974,7 @@ const anthropicMessagesSseBody = (): string =>
   sseEvent('message_start', {
     type: 'message_start',
     message: {
+      container: null, diagnostics: null, stop_details: null,
       id: 'msg_1',
       type: 'message',
       role: 'assistant',
@@ -979,13 +982,13 @@ const anthropicMessagesSseBody = (): string =>
       model: 'claude-opus-4.6-fast',
       stop_reason: null,
       stop_sequence: null,
-      usage: { input_tokens: 5, output_tokens: 0 },
+      usage: { cache_creation: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, inference_geo: null, output_tokens_details: null, server_tool_use: null, service_tier: null, input_tokens: 5, output_tokens: 0 },
     },
   })
   + sseEvent('message_delta', {
     type: 'message_delta',
-    delta: { stop_reason: 'end_turn', stop_sequence: null },
-    usage: { output_tokens: 7 },
+    delta: { container: null, stop_details: null, stop_reason: 'end_turn', stop_sequence: null },
+    usage: { input_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, output_tokens_details: null, server_tool_use: null, output_tokens: 7 },
   })
   + sseEvent('message_stop', { type: 'message_stop' })
   + sseDone();
@@ -1133,7 +1136,7 @@ test('Copilot provider routes speed=fast to the -fast raw variant and stamps usa
       if (messageDelta?.type !== 'event' || messageDelta.event.type !== 'message_delta') {
         throw new Error('expected message_delta frame');
       }
-      assertEquals(messageDelta.event.usage?.speed, 'fast');
+      assertEquals('speed' in messageDelta.event.usage!, false);
 
       assertEquals(result.modelKey, 'claude-opus-4.6-fast');
     },
@@ -1417,6 +1420,44 @@ test('Copilot provider persists the quota snapshot a data-plane response carries
   assertEquals(snapshot?.data.quotas.premium_interactions.quota_remaining, 270);
   assertEquals(snapshot?.data.quotas.chat.unlimited, true);
   assertEquals(snapshot?.data.reset_at, '2026-09-01T00:00:00Z');
+});
+
+test('Copilot provider returns the upstream response when passive quota headers are malformed', async () => {
+  const harness = await setupCopilotTest();
+  const provider = createCopilotProvider(harness.copilotUpstream).instance;
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+  await withMockedFetch(
+    request => {
+      const url = new URL(request.url);
+      if (url.pathname === '/copilot_internal/v2/token') {
+        return jsonResponse({
+          token: 'tid=x;exp=9999999999',
+          expires_at: 9_999_999_999,
+          refresh_in: 3600,
+          endpoints: { api: 'https://api.individual.githubcopilot.com' },
+        });
+      }
+      if (url.pathname === '/models') {
+        return jsonResponse(copilotModels([{ id: 'gpt-chat', supported_endpoints: ['/chat/completions'] }]));
+      }
+      if (url.pathname === '/chat/completions') {
+        return sseResponse('data: [DONE]\n\n', 200, {
+          'x-quota-snapshot-premium_interactions': 'ent=-2&ov=0.0&ovPerm=false&rem=0.0&rst=2026-09-01T00%3A00%3A00Z&totRem=0',
+        });
+      }
+      throw new Error(`Unhandled fetch ${request.url}`);
+    },
+    async () => {
+      const [model] = await provider.getProvidedModels(directFetcher);
+      const result = await provider.callOpenAIChatCompletions(model, { messages: [{ role: 'user', content: 'hi' }] }, undefined, noopUpstreamCallOptions());
+      assertEquals(result.ok, true);
+    },
+  );
+
+  assertEquals(readCopilotUpstreamState(harness.getCurrentState()).quotaSnapshot, null);
+  assertEquals(warn.mock.calls.length, 1);
+  warn.mockRestore();
 });
 
 // `/models` and every 4xx we have observed come back without the header

@@ -6,11 +6,10 @@
 
 import { findCredential, planLabel as claudeCodePlanLabel, quotaWindows, rateLimitedUntil, WINDOW_MINUTES } from './claude-code-account';
 import { latestCredits, latestQuotaEntry, planLabel as codexPlanLabel, quotaEntries } from './codex-account';
-import { copilotQuota, readBuckets } from './copilot-quota';
+import { copilotQuota, copilotQuotaName, readBuckets } from './copilot-quota';
 import { planLabel as copilotPlanLabel } from './copilot-seat';
 import { planLabel as ollamaPlanLabel } from './ollama-account';
-import { activityCostText, isZeroActivityCost, readActivityCost, readWindows } from './ollama-usage';
-import { readWindows as readOpencodeGoWindows } from './opencode-go-usage';
+import { activityCostHint, activityCostText, includedCreditsHint, includedCreditsUsed, readWindows } from './ollama-usage';
 import { providerLabel } from './provider-badge';
 import { quotaRingTone, WALL_CLOCK_REFRESH_MS, windowLengthLabel } from './subscription-quota';
 import type { UpstreamRecord } from '../../api/types';
@@ -21,6 +20,7 @@ import { dateTime, shortDate } from '../../lib/format-time';
 import { useLocale } from '../../lib/use-locale';
 import { useNow } from '../../lib/use-now';
 import { ProgressRing } from '../ui/progress-ring';
+import { readOllamaAccountUsage } from '@floway-dev/provider-ollama/browser';
 
 const { Text, Tooltip, makeStyles, mergeClasses } = fluentComponents;
 
@@ -60,7 +60,7 @@ const useStyles = makeStyles({
 // scanned down the numbers.
 export interface UpstreamSignal {
   key: string;
-  /** A percentage this reading fills a ring with, or null for an amount. */
+  /** Used percentage for the reading and its severity, or null for an amount. */
   percent: number | null;
   value: string;
   label: string | null;
@@ -82,24 +82,21 @@ export interface UpstreamReadout {
 }
 
 // The tooltip carries what the row has no width for -- the window's own name,
-// when it resets, when the reading was taken -- as one line, because a Fluent
-// tooltip renders its content as a single run of text. The glue between the
-// facts is the locale's, as it is for every other string this app composes:
-// zh-Hans separates them with a full-width comma, not a spaced hyphen.
-const detailText = (t: TFunction, parts: (string | null)[]): string =>
-  parts.filter(part => part !== null).join(t('dashboard.upstreams.signals.detailSeparator'));
+// when it resets, when the reading was taken -- one fact per line, so a reading
+// whose window and instant are both stated stays readable instead of running into
+// one long measure the tooltip then has to wrap on its own.
+const detailText = (parts: (string | null)[]): string =>
+  parts.filter(part => part !== null).join('\n');
 
 const meterDetail = (t: TFunction, label: string, percent: number, resetAt: string | null, observedAt: string | number | null, locale: string): string =>
-  detailText(t, [
-    t('dashboard.upstreams.signals.used', { label, percent: Math.round(percent) }),
+  detailText([
+    t('dashboard.upstreams.signals.remaining', { label, percent: 100 - Math.round(percent) }),
     resetAt === null ? null : t('dashboard.upstreams.signals.resets', { time: dateTime(resetAt, locale) }),
     observedAt === null ? null : t('dashboard.upstreams.signals.observed', { time: dateTime(observedAt, locale) }),
   ]);
 
-// As the upstream reported it: an overage-permitted bucket runs past 100, and
-// only the ring beside the number is clamped.
-const percentValue = (t: TFunction, percent: number): string =>
-  t('dashboard.upstreams.signals.percent', { percent: Math.round(percent) });
+const remainingPercentValue = (t: TFunction, percent: number): string =>
+  t('dashboard.upstreams.signals.percent', { percent: 100 - Math.round(percent) });
 
 // Last on the line: the windows are what an operator reads at a glance, and this
 // says how long the wait still has to run rather than when it ends -- an instant
@@ -129,9 +126,9 @@ const copilotSignals = (record: Extract<UpstreamRecord, { kind: 'copilot' }>, t:
     .map(bucket => ({
       key: bucket.id,
       percent: bucket.usedPercent,
-      value: percentValue(t, bucket.usedPercent),
+      value: remainingPercentValue(t, bucket.usedPercent),
       label: quota.reset_at == null ? null : t('dashboard.upstreams.signals.until', { date: shortDate(quota.reset_at, locale) }),
-      detail: meterDetail(t, bucket.label, bucket.usedPercent, quota.reset_at ?? null, quota.observed_at, locale),
+      detail: meterDetail(t, copilotQuotaName(t, bucket.id, 'allowance'), bucket.usedPercent, quota.reset_at ?? null, quota.observed_at, locale),
     }));
 };
 
@@ -147,7 +144,7 @@ const codexSignals = (record: Extract<UpstreamRecord, { kind: 'codex' }>, t: TFu
     return {
       key: item.key,
       percent: item.percent,
-      value: percentValue(t, item.percent),
+      value: remainingPercentValue(t, item.percent),
       label,
       detail: meterDetail(t, label, item.percent, item.resetAt, entry.observedAt, locale),
     };
@@ -185,7 +182,7 @@ const claudeCodeSignals = (record: Extract<UpstreamRecord, { kind: 'claude-code'
     return {
       key: row.key,
       percent: row.percent,
-      value: percentValue(t, row.percent),
+      value: remainingPercentValue(t, row.percent),
       label,
       detail: meterDetail(t, label, row.percent, row.resetAt, row.fetchedAt, locale),
     };
@@ -204,69 +201,55 @@ const ollamaSignals = (record: Extract<UpstreamRecord, { kind: 'ollama' }>, t: T
   const observation = probe?.observation ?? null;
   if (observation === null) return [];
 
-  const signals: UpstreamSignal[] = readWindows(observation.data).map(item => {
+  const usage = readOllamaAccountUsage(observation.data);
+  const signals: UpstreamSignal[] = readWindows(usage.included).map(item => {
     const label = windowLengthLabel(item.minutes);
     return {
       key: item.key,
       percent: item.percent,
-      value: percentValue(t, item.percent),
+      value: remainingPercentValue(t, item.percent),
       label,
-      // Ollama reports no reset instant for either window.
-      detail: meterDetail(t, label, item.percent, null, observation.fetchedAt, locale),
+      detail: meterDetail(t, label, item.percent, item.resetsAt, observation.fetchedAt, locale),
     };
   });
 
-  const cost = readActivityCost(observation.data);
-  if (cost !== null && !isZeroActivityCost(cost.amount)) {
+  if (usage.included.kind === 'credits') {
+    const included = usage.included;
+    const used = includedCreditsUsed(included);
+    const percent = included.allowanceUsd === 0 ? 0 : 100 * used / included.allowanceUsd;
+    signals.push({
+      key: 'included',
+      percent,
+      value: remainingPercentValue(t, percent),
+      label: `${activityCostText(used)} / ${activityCostText(included.allowanceUsd)}`,
+      detail: detailText([includedCreditsHint(included, t, locale), t('dashboard.upstreamEditor.ollama.usage.resets', { time: dateTime(included.until, locale) })]),
+    });
+    return signals;
+  }
+
+  const cost = usage.activity;
+  if (cost.usageUsd !== null && cost.usageUsd !== 0) {
     signals.push({
       key: 'cost',
       percent: null,
-      value: activityCostText(cost.amount),
+      value: activityCostText(cost.usageUsd),
       label: null,
-      detail: cost.period === 'last_4_weeks'
-        ? t('dashboard.upstreams.signals.costLast4Weeks')
-        : t('dashboard.upstreams.signals.cost'),
+      detail: activityCostHint(cost, t, locale),
     });
   }
   return signals;
 };
 
-const opencodeGoSignals = (record: Extract<UpstreamRecord, { kind: 'opencode-go' }>, t: TFunction, locale: string): UpstreamSignal[] => {
-  const probe = record.state?.usageProbe ?? null;
-  const observation = probe?.observation ?? null;
-  if (observation === null) return [];
-
-  // A spent window stays on the row beside its percentage: the red value states
-  // the block, and the number states how full the window is. It keeps the
-  // window's own length as the label rather than swapping in a remaining-time
-  // countdown -- a window label means the same thing on every row -- and the
-  // tooltip already carries the instant the window resets.
-  return readOpencodeGoWindows(observation.data).map(item => {
-    const label = windowLengthLabel(item.minutes);
-    return {
-      key: item.key,
-      percent: item.percent,
-      value: percentValue(t, item.percent),
-      label,
-      detail: meterDetail(t, label, item.percent, item.resetAt, observation.fetchedAt, locale),
-      blocked: item.blocked,
-    };
-  });
-};
-
 const upstreamSignals = (record: UpstreamRecord, t: TFunction, locale: string, now: number): UpstreamSignal[] => {
   switch (record.kind) {
-  // An operator-configured endpoint publishes no account of its own to report on,
-  // and Zen documents no usage endpoint, so neither has a row of readings.
+  // An operator-configured endpoint publishes no account of its own to report on.
   case 'custom':
   case 'azure':
-  case 'opencode':
     return [];
   case 'copilot': return copilotSignals(record, t, locale);
   case 'codex': return codexSignals(record, t, locale, now);
   case 'claude-code': return claudeCodeSignals(record, t, locale, now);
   case 'ollama': return ollamaSignals(record, t, locale);
-  case 'opencode-go': return opencodeGoSignals(record, t, locale);
   }
 };
 
@@ -278,8 +261,6 @@ const upstreamPlan = (record: UpstreamRecord): string | null => {
   switch (record.kind) {
   case 'custom':
   case 'azure':
-  case 'opencode-go':
-  case 'opencode':
     return null;
   case 'copilot': return copilotPlanLabel(record);
   case 'ollama': return ollamaPlanLabel(record);
@@ -309,7 +290,7 @@ export function UpstreamSignals({ record }: { record: UpstreamRecord }) {
     <div className="flex items-baseline gap-x-3 min-w-0">
       {signals.map(signal => <Tooltip content={signal.detail} key={signal.key} relationship="description">
         <span className={mergeClasses('winui-focus-rect inline-flex items-baseline gap-1 min-w-0', styles.signal)} tabIndex={0}>
-          {signal.percent !== null && <ProgressRing percent={signal.percent} tone={quotaRingTone(signal.percent)} />}
+          {signal.percent !== null && <ProgressRing percent={100 - signal.percent} tone={quotaRingTone(signal.percent)} />}
           <Text size={200} className={signal.blocked === true ? styles.blocked : styles.value} weight="medium" wrap={false}>{signal.value}</Text>
           {signal.label !== null && <Text size={200} className={styles.label} truncate wrap={false}>{signal.label}</Text>}
         </span>

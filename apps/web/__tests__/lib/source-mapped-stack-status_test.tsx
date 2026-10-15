@@ -60,6 +60,9 @@ describe('what the error page is told about its trace', () => {
   it('replaces the trace once the maps land', async () => {
     vi.stubEnv('DEV', false);
     renderInApp(<Probe stack={RAW} />);
+    // The restoration loads its source map library through a dynamic import,
+    // which the test runner serves as module I/O rather than a microtask, so
+    // one settle can return before it lands when the runner is busy.
     await waitFor(() => expect(read()).toEqual({ status: 'settled', stack: 'Error: boom\n    at handler (/src/first.ts:1:1)' }));
   });
 
@@ -68,7 +71,8 @@ describe('what the error page is told about its trace', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('', { status: 503 }))));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     renderInApp(<Probe stack={RAW} />);
-    await waitFor(() => expect(read()).toEqual({ status: 'failed', stack: RAW }));
+    await settle();
+    expect(read()).toEqual({ status: 'failed', stack: RAW });
   });
 
   it('goes back to waiting when a second failure replaces the first', async () => {

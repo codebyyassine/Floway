@@ -19,7 +19,7 @@ import { ChoiceGroup } from '../ui/choice-group';
 import { Checkbox, Dropdown, Input, Switch } from '../ui/fluent-form-controls';
 import { CHECKBOX_LIST_CLASS, TWO_COLUMN_FORM_CLASS } from '../ui/layout';
 import { SectionHeader } from '../ui/section-header';
-import type { UpstreamChatModelConfig, UpstreamModelConfig } from '@floway-dev/provider/model-config';
+import type { UpstreamChatModelConfig, UpstreamModelConfig } from '@floway-dev/provider/browser';
 
 const {
   Button,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { creditBalance, legacyBalance, usageTotals } from './ollama-usage-fixture';
 import type { UpstreamRecord } from '../../../src/api/types';
 import { upstreamReadout } from '../../../src/components/upstreams/signals';
 import en from '../../../src/i18n/locales/en';
@@ -18,6 +19,11 @@ const t = ((key: string, values?: Record<string, unknown>) => {
   if (typeof template !== 'string') throw new Error(`Missing i18n key: ${key}`);
   return template.replace(/\{\{(\w+)[^}]*\}\}/g, (_, name: string) => String(values?.[name]));
 }) as unknown as TFunction;
+
+// Intl writes a narrow no-break space before a day-period (U+202F), which a
+// literal expectation cannot spell readably; collapsing it keeps the assertion
+// about the layout it is testing.
+const normalizeSpaces = (value: string): string => value.replace(/\u202f/g, ' ');
 
 const NOW = Date.parse('2026-07-28T12:00:00.000Z');
 const readoutOf = (record: unknown) => upstreamReadout(record as UpstreamRecord, t, 'en', NOW);
@@ -50,9 +56,28 @@ describe('upstream readout by provider', () => {
         },
       },
     };
-    expect(rowOf(record)).toBe('Copilot | 29% until Sep 1, 2026');
-    // The bucket's own name is what the row had no width for, so it is the tooltip.
-    expect(readoutOf(record).signals[0].detail).toContain('premium interactions: 29% used');
+    expect(rowOf(record)).toBe('Copilot | 71% until Sep 1, 2026');
+    // The bucket's own name is what the row had no width for, so it is the tooltip,
+    // one fact per line rather than a run the tooltip wraps on its own.
+    const detail = readoutOf(record).signals[0].detail;
+    expect(detail).not.toContain(' - ');
+    expect(detail.split('\n').map(normalizeSpaces)).toEqual([
+      'Allowance: 71% remaining',
+      'Resets Sep 1, 2026, 12:00:00 AM',
+      'Observed Jul 28, 2026, 11:00:00 AM',
+    ]);
+  });
+
+  it('stacks what a reading reports on their own lines', () => {
+    const detail = readoutOf({
+      kind: 'codex',
+      config: { accounts: [{ chatgptAccountId: 'acct_1', planType: 'plus' }] },
+      state: { accounts: [] },
+      codex_quota: { plus: { observed_at: OBSERVED, primary_used_percent: 25, primary_window_minutes: 300 } },
+    }).signals[0]?.detail;
+    // A window with no reset still states the reading and when it was taken, and the
+    // two are lines rather than one run.
+    expect(normalizeSpaces(detail!)).toBe('5h: 75% remaining\nObserved Jul 28, 2026, 11:00:00 AM');
   });
 
   it('names the Copilot seat the way VS Code names it', () => {
@@ -77,7 +102,7 @@ describe('upstream readout by provider', () => {
   // A rate limit and a spent window are different facts: the row states the
   // limit rather than inferring it from a percentage that can read low while it
   // holds, and states how long the wait still has to run rather than when it
-  // ends. Days are the largest unit it uses.
+  // ends. Hours are the largest unit it uses.
   it('states a Codex rate limit last, as the time it still has to run', () => {
     const rowFor = (until: string) => rowOf({
       kind: 'codex',
@@ -88,35 +113,11 @@ describe('upstream readout by provider', () => {
       },
     });
 
-    expect(rowFor('2026-07-28T14:30:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 2h 30m');
-    expect(rowFor('2026-07-28T12:45:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 45m');
-    // A day out reads in days -- 24h and beyond never read as hours -- and any
-    // time left never reads as none.
-    expect(rowFor('2026-07-29T15:00:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 1d 3h');
-    expect(rowFor('2026-07-30T12:00:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 2d');
-    expect(rowFor('2026-08-27T12:00:00.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 30d');
-    expect(rowFor('2026-07-28T12:00:01.000Z')).toBe('ChatGPT Pro | 12% 5h | Rate limited 1m');
-  });
-
-  it('drops a Codex window reset once its instant has passed', () => {
-    const record = {
-      kind: 'codex',
-      config: { accounts: [{ chatgptAccountId: 'acct_1', planType: 'pro' }] },
-      state: { accounts: [] },
-      codex_quota: {
-        pro: {
-          observed_at: OBSERVED,
-          primary_used_percent: 100, primary_window_minutes: 300,
-          primary_reset_after_at: '2026-07-28T11:30:00.000Z',
-          secondary_used_percent: 40, secondary_window_minutes: 10_080,
-          secondary_reset_after_at: '2026-08-05T00:00:00.000Z',
-        },
-      },
-    };
-    expect(rowOf(record)).toBe('ChatGPT Pro | 0% 5h | 40% 7d');
-    const details = readoutOf(record).signals.map(signal => signal.detail);
-    expect(details[0]).not.toContain('Resets ');
-    expect(details[1]).toContain('Resets ');
+    expect(rowFor('2026-07-28T14:30:00.000Z')).toBe('ChatGPT Pro | 88% 5h | Rate limited 2h 30m');
+    expect(rowFor('2026-07-28T12:45:00.000Z')).toBe('ChatGPT Pro | 88% 5h | Rate limited 45m');
+    // A day out still reads in hours, and any time left never reads as none.
+    expect(rowFor('2026-07-30T12:00:00.000Z')).toBe('ChatGPT Pro | 88% 5h | Rate limited 48h');
+    expect(rowFor('2026-07-28T12:00:01.000Z')).toBe('ChatGPT Pro | 88% 5h | Rate limited 1m');
   });
 
   it('lets an elapsed Codex rate limit go rather than holding it on the row', () => {
@@ -125,7 +126,7 @@ describe('upstream readout by provider', () => {
       config: { accounts: [{ chatgptAccountId: 'acct_1', planType: 'pro' }] },
       state: { accounts: [] },
       codex_quota: { premium: { observed_at: OBSERVED, primary_used_percent: 12, primary_window_minutes: 300, ratelimited_until: '2020-01-01T00:00:00.000Z' } },
-    })).toBe('ChatGPT Pro | 12% 5h');
+    })).toBe('ChatGPT Pro | 88% 5h');
   });
 
   it('states a Claude Code refusal from the status Anthropic reports it under', () => {
@@ -168,7 +169,7 @@ describe('upstream readout by provider', () => {
         },
       },
     };
-    expect(rowOf(record)).toBe('ChatGPT Pro | 25% 5h | 40% 7d');
+    expect(rowOf(record)).toBe('ChatGPT Pro | 75% 5h | 60% 7d');
   });
 
   it('forwards a ChatGPT plan this dashboard has not seen', () => {
@@ -186,7 +187,7 @@ describe('upstream readout by provider', () => {
       state: { accounts: [] },
       codex_quota: { plus: { observed_at: OBSERVED, primary_used_percent: 25 } },
     };
-    expect(rowOf(record)).toBe('ChatGPT Plus | 25% Primary');
+    expect(rowOf(record)).toBe('ChatGPT Plus | 75% Primary');
   });
 
   it('states the Codex limit observed last rather than every key the map holds', () => {
@@ -199,7 +200,7 @@ describe('upstream readout by provider', () => {
         current: { observed_at: OBSERVED, primary_used_percent: 12, primary_window_minutes: 300 },
       },
     };
-    expect(rowOf(record)).toBe('ChatGPT Plus | 12% 5h');
+    expect(rowOf(record)).toBe('ChatGPT Plus | 88% 5h');
   });
 
   it('carries the Codex credit balance beside the windows', () => {
@@ -237,7 +238,7 @@ describe('upstream readout by provider', () => {
         }],
       },
     };
-    expect(rowOf(record)).toBe('Claude Max 20x | 25% 5h | 40% 7d | 8% 7d Sonnet');
+    expect(rowOf(record)).toBe('Claude Max 20x | 75% 5h | 60% 7d | 92% 7d Sonnet');
   });
 
   it('names a Claude subscription that carries no multiple by the subscription alone', () => {
@@ -290,73 +291,40 @@ describe('upstream readout by provider', () => {
     expect(planFor(null)).toBe('Ollama');
   });
 
-  it('reads the Ollama Cloud windows and the activity cost the probe stored', () => {
-    const record = {
-      kind: 'ollama',
-      state: {
-        account: { fetchedAt: Date.parse(OBSERVED), plan: 'pro', name: null, email: null },
-        usageProbe: {
-          attemptedAt: Date.parse(OBSERVED), error: null, observation: {
-            fetchedAt: Date.parse(OBSERVED),
-            data: {
-              activity: { cost: '24.34000', period: { type: 'last_4_weeks' } },
-              limits: { session: { usage: 0.25 }, weekly: { usage: 0.4 } },
-            },
-          },
-        },
-      },
-    };
-    expect(rowOf(record)).toBe('Ollama Pro | 25% 5h | 40% 7d | $24.34');
-    const cost = readoutOf(record).signals.at(-1);
-    expect(cost?.detail).toBe('Charged to this account in the last 4 weeks');
+  const ollamaRecord = (data: unknown) => ({ kind: 'ollama', state: { account: { plan: 'pro' }, usageProbe: { observation: { fetchedAt: Date.parse(OBSERVED), data } } } });
+
+  it('keeps legacy percentage signals while using current balance reset times', () => {
+    const record = ollamaRecord({ balance: legacyBalance, usage: { ...usageTotals, totals: { request_count: 15 } } });
+    expect(rowOf(record)).toBe('Ollama Pro | 75% 5h | 60% 7d');
+    expect(readoutOf(record).signals[0]?.detail).toContain('Oct 11, 2026');
   });
 
-  it('leaves the charge unqualified when the upstream named no period for it', () => {
-    const signals = readoutOf({
-      kind: 'ollama',
-      state: {
-        account: { fetchedAt: Date.parse(OBSERVED), plan: 'pro', name: null, email: null },
-        usageProbe: {
-          attemptedAt: Date.parse(OBSERVED), error: null, observation: {
-            fetchedAt: Date.parse(OBSERVED),
-            data: { activity: { cost: '1.00' }, limits: {} },
-          },
-        },
-      },
-    }).signals;
-    expect(signals.at(-1)?.detail).toBe('Charged to this account');
+  it('shows remaining plan credits against their period allowance', () => {
+    const record = ollamaRecord({ balance: creditBalance, usage: usageTotals });
+    expect(rowOf(record)).toBe('Ollama Pro | 30% $42.00 / $60.00');
+    expect(readoutOf(record).signals[0]?.percent).toBe(70);
+    expect(readoutOf(record).signals[0]?.detail).toContain('Oct 1, 2026 to Nov 1, 2026: plan credits used this period.');
   });
 
-  // The card keeps that zero; a row of live readings does not, because a figure
-  // saying nothing happened earns none of the width.
-  it('leaves an Ollama Cloud account that has spent nothing off the row', () => {
-    expect(rowOf({
-      kind: 'ollama',
-      state: {
-        usageProbe: {
-          attemptedAt: Date.parse(OBSERVED), error: null, observation: {
-            fetchedAt: Date.parse(OBSERVED),
-            data: { activity: { cost: '0.00000' }, limits: {} },
-          },
-        },
-      },
-    })).toBe('Ollama');
+  it('derives subscription usage from its own period when activity spans a reset', () => {
+    const signals = readoutOf(ollamaRecord({
+      balance: { ...creditBalance, included: { ...creditBalance.included, balance_usd: 57, period: { from: '2026-11-01T00:00:00Z', until: '2026-12-01T00:00:00Z' } } },
+      usage: { ...usageTotals, from: '2026-10-27T00:00:00Z', until: '2026-11-03T04:00:00Z', totals: { request_count: 15, usage_usd: 10 } },
+    })).signals;
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.value).toBe('95%');
+    expect(signals[0]?.label).toBe('$3.00 / $60.00');
+    expect(signals[0]?.percent).toBe(5);
+    expect(signals[0]?.detail).toContain('Nov 1, 2026 to Dec 1, 2026: plan credits used this period.');
   });
 
-  // Not zero -- unreadable. It stays, rather than being hidden as if the account
-  // had spent nothing.
-  it('keeps a charge the money ladder cannot read', () => {
-    expect(rowOf({
-      kind: 'ollama',
-      state: {
-        usageProbe: {
-          attemptedAt: Date.parse(OBSERVED), error: null, observation: {
-            fetchedAt: Date.parse(OBSERVED),
-            data: { activity: { cost: 'unknown' }, limits: {} },
-          },
-        },
-      },
-    })).toBe('Ollama | $unknown');
+  it('renders a zero allowance with a full remaining ring and finite percentage', () => {
+    const signals = readoutOf(ollamaRecord({ balance: { ...creditBalance, included: { ...creditBalance.included, balance_usd: 0, allowance_usd: 0 } }, usage: usageTotals })).signals;
+    expect(signals[0]).toMatchObject({ percent: 0, value: '100%', label: '$0 / $0' });
+  });
+
+  it('leaves zero consumption off the list while retaining legacy percentages', () => {
+    expect(rowOf(ollamaRecord({ balance: legacyBalance, usage: { ...usageTotals, totals: { request_count: 15, usage_usd: 0 } } }))).toBe('Ollama Pro | 75% 5h | 60% 7d');
   });
 
   it('reports nothing for a self-hosted Ollama, which serves no usage endpoint', () => {

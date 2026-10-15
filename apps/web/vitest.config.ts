@@ -5,6 +5,7 @@ export default defineConfig({
     maxWorkers: 2,
     include: ['__tests__/**/*_test.{ts,tsx}'],
     environment: 'happy-dom',
+    server: { deps: { inline: [/@fluentui\//, /@griffel\//, /tabster/] } },
     setupFiles: ['./__tests__/setup.ts'],
   },
 });

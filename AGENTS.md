@@ -4,8 +4,7 @@
 
 | Scope | Requirement | Enforcement |
 |---|---|---|
-| Document shape | Keep this file as the two tables named `Requirements` and `Index`. | `pnpm run check:agents-md` |
-| Index inventory | Keep `Index` as the complete sorted inventory of CI workflows, skills, and workspace package directories with a short responsibility overview. | `pnpm run check:agents-md` |
+| Index inventory | Keep `Index` as the complete sorted inventory of CI workflows, skills, and workspace package directories with a short responsibility overview. | Repository review |
 | Task scope | Derive every action from the user's request and preserve unrelated working-tree state. | Final diff review |
 | Questions | Answer requested questions from read-only evidence. | Final diff review |
 | Findings | Reproduce the reported scenario and validate third-party findings against primary sources before acting. | Investigation evidence |
@@ -24,10 +23,10 @@
 | Pull request merge | Require the human's explicit permission for the exact Pull Request before merging it. | Human gate |
 | Stacked Pull Requests | Keep dependent Pull Requests draft and targeted at their predecessor; retarget and publish each one when all dependencies reach `main`. | Pull Request state |
 | `CHANGELOG.md` | Apply only the exact content the human requests and otherwise leave the file untouched. | Human request and final diff review |
-| Completion | Run and read every verification selected by the owning configuration before claiming completion. | Verification output |
-| Verification inventory | Reach every verification through a root script, chain them all from `verify`, and keep `verify.yaml` running exactly that set. | `pnpm run check:verify-parity` |
-| Test placement | Place package tests and test-only support under `__tests__/` mirroring production directories; keep root verifier entrypoints and `@floway-dev/test-utils` in their owning production locations. | Vitest configs and repository review |
-| Script naming | Name a `scripts/` entrypoint for its kind — `check-` verifies an invariant, `require-` gates an action, `generate-` writes checked-in output, `test-` runs a harness — and leave importable modules unprefixed. | Repository review |
+| Completion | Run and read every relevant verification selected for the task before claiming completion. | Verification output |
+| Local verification | Lint task-owned files, run the narrowest relevant test files or directories, select the owning TypeScript projects, and widen scope only when the changed contract requires it. | Reported commands and final diff |
+| Verification ownership | Put repository-wide lint, typecheck, tests, generated-output checks, and builds directly in `verify.yaml`; expose local commands only when their scope is intrinsic or caller-supplied. | Package scripts and CI workflow review |
+| Test placement | Place package tests and test-only support under `__tests__/` mirroring production directories; keep `@floway-dev/test-utils` in its owning production location. | Vitest configs and repository review |
 | Generated files | Give every checked-in generator output a `.generated.` filename infix and keep generated and vendored attributes aligned. | `.gitattributes` and drift checks |
 | Current concepts | Keep code, comments, tests, and documentation expressed in the current architecture; preserve historical names only in migrations. | Repository search and final diff review |
 | Product name | Write **Floway** in prose, comments, test names, assertions, and logs; use lowercase `floway` only in established technical contracts. | Repository review |
@@ -38,7 +37,7 @@
 | Workspace dependencies | Keep foundation packages runtime-independent and preserve the dependency direction encoded by workspace manifests and ESLint. | Package manifests, ESLint, and typecheck |
 | Cross-package imports | Reach runtime code through declared package exports and keep platform-target apps isolated from one another. | ESLint |
 | Runtime composition | Keep deployment-specific implementations and entrypoints in `apps/platform-*` and portable contracts in `packages/platform`. | Package manifests and typecheck |
-| Browser boundary | Keep `apps/web` runtime imports browser-safe and gateway imports type-only through declared exports. | ESLint and web build |
+| Browser boundary | Reach workspace packages through `/browser` from `apps/web`, keep runtime exports browser-safe, and import `gateway/browser` only as types. | ESLint and web build |
 | Fluent boundary | Import Fluent values through `apps/web/src/fluent.ts`, place generic controls under `components/ui/`, and keep domain imports outside those controls. | ESLint and component tests |
 | WinUI derivation | Ground WinUI values and intentional departures in permalinks at their owning rules. | UI source review |
 | Localization | Route user-visible strings through the typed i18n boundary and keep `en` and `zh-Hans` resources structurally equivalent. | ESLint and locale tests |

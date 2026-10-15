@@ -31,6 +31,7 @@ const keyedRecord = (overrides: Partial<UpstreamRecord> = {}): UpstreamRecord =>
   modelPrefix: null,
   modelsCache: null,
   hue: 210,
+      usageRefreshIntervalMinutes: 0,
   ...overrides,
 });
 
@@ -54,6 +55,7 @@ const withStateRepo = (state: unknown = null) => {
         current = mutate(current);
       },
     },
+    recordUpstreamMetric: async () => {},
   }));
   return { read: () => readOpencodeGoUpstreamState(current) };
 };

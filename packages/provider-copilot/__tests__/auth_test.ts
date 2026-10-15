@@ -23,6 +23,7 @@ const installRepoAndClearCache = async () => {
     kind: 'copilot',
     name: 'auth-test',
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-03-15T00:00:00.000Z',
     updatedAt: '2026-03-15T00:00:00.000Z',
@@ -36,6 +37,7 @@ const installRepoAndClearCache = async () => {
     config: { githubHost: 'github.com', githubToken: 'ghu_test', user: { id: 1, login: 't', name: null, avatar_url: '' } },
   };
   initProviderRepo(() => ({
+    recordUpstreamMetric: async () => {},
     upstreams: {
       getById: async () => ({ ...stub, state }),
       saveState: async (_id, mutate) => {
@@ -418,6 +420,7 @@ test('copilotAuthedFetch persists a minted token even when the row changed durin
     kind: 'copilot',
     name: 'auth-test',
     enabled: true,
+    usageRefreshIntervalMinutes: 0,
     sortOrder: 0,
     createdAt: '2026-03-15T00:00:00.000Z',
     updatedAt: '2026-03-15T00:00:00.000Z',
@@ -431,6 +434,7 @@ test('copilotAuthedFetch persists a minted token even when the row changed durin
     config: { githubHost: 'github.com', githubToken: 'ghu_test', user: { id: 1, login: 't', name: null, avatar_url: '' } },
   };
   initProviderRepo(() => ({
+    recordUpstreamMetric: async () => {},
     upstreams: {
       getById: async () => ({ ...stub, state }),
       saveState: async (_id, mutate) => {

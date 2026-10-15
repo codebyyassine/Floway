@@ -9,9 +9,12 @@ import type {
   UpstreamRecord,
   UpstreamRecordEnvelope,
 } from '../../api/types';
-import type { UpstreamProviderKind } from '@floway-dev/provider/model';
-import type { UpstreamModelConfig } from '@floway-dev/provider/model-config';
-import { MODEL_PREFIX_MAX_LENGTH, MODEL_PREFIX_REGEX } from '@floway-dev/provider/model-prefix';
+import {
+  type UpstreamProviderKind,
+  type UpstreamModelConfig,
+  MODEL_PREFIX_MAX_LENGTH,
+  MODEL_PREFIX_REGEX,
+} from '@floway-dev/provider/browser';
 
 type CreateUpstreamBody = InferRequestType<typeof api.api.upstreams.$post>['json'];
 type UpdateUpstreamBody = InferRequestType<typeof api.api.upstreams[':id']['$patch']>['json'];
@@ -65,6 +68,7 @@ export interface ModelRow {
 export interface UpstreamEditorValues {
   name: string;
   enabled: boolean;
+  usageRefreshIntervalMinutes: number;
   hue: UpstreamRecord['hue'];
   blockPeakPricedModels: boolean;
   proxyFallbackList: UpstreamRecord['proxy_fallback_list'];
@@ -215,6 +219,7 @@ export const valuesFromRecord = (record: UpstreamRecord): UpstreamEditorValues =
   return {
     name: record.name,
     enabled: record.enabled,
+    usageRefreshIntervalMinutes: record.usage_refresh_interval_minutes,
     hue: record.hue,
     blockPeakPricedModels: record.block_peak_priced_models ?? false,
     proxyFallbackList: structuredClone(record.proxy_fallback_list).map(entry => withRegisteredKey('colos', entry)),
@@ -267,6 +272,7 @@ export const previewRecord = (record: UpstreamRecord, values: UpstreamEditorValu
     ...record,
     name: values.name.trim(),
     enabled: values.enabled,
+    usage_refresh_interval_minutes: values.usageRefreshIntervalMinutes,
     hue: values.hue,
     block_peak_priced_models: values.blockPeakPricedModels,
     config: configFromValues(record, values, { preserveStoredSecret: true }),
@@ -285,6 +291,7 @@ export const createBody = (record: UpstreamRecord, values: UpstreamEditorValues,
     kind: record.kind,
     name: values.name.trim(),
     enabled: values.enabled,
+    usage_refresh_interval_minutes: values.usageRefreshIntervalMinutes,
     hue: values.hue,
     block_peak_priced_models: values.blockPeakPricedModels,
     flag_overrides: values.flagOverrides,
@@ -317,6 +324,7 @@ export const updateBody = (record: UpstreamRecord, values: UpstreamEditorValues)
   return {
     name: values.name.trim(),
     enabled: values.enabled,
+    usage_refresh_interval_minutes: values.usageRefreshIntervalMinutes,
     hue: values.hue,
     block_peak_priced_models: values.blockPeakPricedModels,
     flag_overrides: values.flagOverrides,

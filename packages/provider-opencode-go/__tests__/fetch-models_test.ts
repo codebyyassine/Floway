@@ -22,6 +22,7 @@ const config: OpencodeGoUpstreamConfig = assertOpencodeGoUpstreamRecord({
   modelPrefix: null,
   modelsCache: null,
   hue: 210,
+      usageRefreshIntervalMinutes: 0,
 } as unknown as UpstreamRecord).config;
 
 const modelsBody = {
